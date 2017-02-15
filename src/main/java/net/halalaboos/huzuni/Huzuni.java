@@ -208,7 +208,8 @@ public enum Huzuni {
 	 * Prints the message to the in-game chat.
 	 * */
 	public void addChatMessage(String message) {
-        addChatMessage(new ChatComponentText(TextColor.BLUE + "[H] " + TextColor.GRAY + message));
+		String output = TextColor.BLUE + "[H] " + TextColor.GRAY + message;
+        addChatMessage(new ChatComponentText(output.replaceAll("\u00a7r", "\u00a77")));
 	}
 
 	public void addFormattedMessage(String message, Object... args) {

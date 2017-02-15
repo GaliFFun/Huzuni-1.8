@@ -71,6 +71,7 @@ public class Projectiles extends BasicMod implements Renderer {
 	public void render(float partialTicks) {
 		ItemStack item = getApplicableItem();
 		if (item != null) {
+			if (!isThrowable(item.getItem())) return;
 			int mode = 0;
 			float velocity;
 

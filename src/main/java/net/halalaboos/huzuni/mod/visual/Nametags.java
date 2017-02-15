@@ -201,6 +201,7 @@ public class Nametags extends BasicMod implements Renderer {
 	
 	private void renderEnchantments(ItemStack item, float x, float y, float scale) {
 		float scaleInverse = 1F / scale, increment = 10F / scaleInverse;
+		if (item == null) return;
 		if (item.getEnchantmentTagList() != null) {
 			NBTTagList enchantments = item.getEnchantmentTagList();
 			for (int j = 0; j < enchantments.tagCount(); j++) {
