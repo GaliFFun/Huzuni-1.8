@@ -1,45 +1,48 @@
 package net.halalaboos.huzuni.api.task;
 
-import net.halalaboos.huzuni.api.mod.Mod;
-import net.minecraft.item.ItemStack;
+import net.halalaboos.huzuni.api.node.attribute.Nameable;
+import net.halalaboos.mcwrapper.api.item.ItemStack;
 
-public abstract class HotbarTask implements Task {
-	
-	protected final Mod mod;
-	
-	protected boolean running = false;
-	
+import static net.halalaboos.mcwrapper.api.MCWrapper.getController;
+import static net.halalaboos.mcwrapper.api.MCWrapper.getPlayer;
+
+public abstract class HotbarTask extends BasicTask {
+
 	protected int slot = -1;
-	
-	public HotbarTask(Mod mod) {
-		this.mod = mod;
+
+	public HotbarTask(Nameable handler) {
+		super(handler);
+		addDependency("hotbar");
 	}
-	
+
+
 	@Override
 	public void onPreUpdate() {
 		ItemStack current = null;
 		int currentSlot = -1;
 		for (int i = 0; i < 9; i++) {
-			ItemStack item = mc.thePlayer.inventory.getStackInSlot(i);
-			if (current != null) {
-				if (compare(current, item)) {
-					current = item;
-					currentSlot = i;
-				}
-			} else {
-				if (isValid(item)) {
-					current = item;
-					currentSlot = i;
+			if (getPlayer().getStack(i).isPresent()) {
+				ItemStack item = getPlayer().getStack(i).get();
+				if (current != null) {
+					if (compare(current, item)) {
+						current = item;
+						currentSlot = i;
+					}
+				} else {
+					if (isValid(item)) {
+						current = item;
+						currentSlot = i;
+					}
 				}
 			}
 		}
 		slot = currentSlot;
 		if (slot != -1) {
-			if (slot != mc.thePlayer.inventory.currentItem) {
-				mc.thePlayer.inventory.currentItem = slot;
-				mc.playerController.updateController();
+			if (slot != getPlayer().getPlayerInventory().getCurrentSlot()) {
+				getPlayer().getPlayerInventory().setCurrentSlot(slot);
+				getController().update();
 			} else
-				mc.thePlayer.inventory.currentItem = slot;
+				getPlayer().getPlayerInventory().setCurrentSlot(slot);
 		}
 	}
 	
@@ -50,30 +53,14 @@ public abstract class HotbarTask implements Task {
 	@Override
 	public void onTaskCancelled() {
 	}
-
-	@Override
-	public boolean isRunning() {
-		return running;
-	}
-
-	@Override
-	public void setRunning(boolean running) {
-		this.running = running;
-	}
-
-	@Override
-	public Mod getMod() {
-		return mod;
-	}
 	
 	protected abstract boolean isValid(ItemStack itemStack);
 	
 	protected boolean compare(ItemStack currentItem, ItemStack newItem) {
-		return newItem != null && currentItem.stackSize > newItem.stackSize;
+		return newItem != null && currentItem.getSize() > newItem.getSize();
 	}
 	
 	public boolean hasSlot() {
-		return slot != -1 && isValid(mc.thePlayer.inventory.getStackInSlot(slot));
+		return slot != -1 && getPlayer().getStack(slot).isPresent() && isValid(getPlayer().getStack(slot).get());
 	}
-	
 }

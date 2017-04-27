@@ -1,10 +1,11 @@
 package net.halalaboos.huzuni.mod.movement;
 
-import net.halalaboos.huzuni.api.event.EventManager.EventMethod;
-import net.halalaboos.huzuni.api.event.UpdateEvent;
 import net.halalaboos.huzuni.api.mod.BasicMod;
 import net.halalaboos.huzuni.api.mod.Category;
-import net.halalaboos.huzuni.api.settings.Value;
+import net.halalaboos.huzuni.api.node.impl.Value;
+import net.halalaboos.mcwrapper.api.event.player.PostMotionUpdateEvent;
+
+import static net.halalaboos.mcwrapper.api.MCWrapper.getPlayer;
 
 /**
  * Allows the player to step up blocks.
@@ -18,23 +19,14 @@ public class Step extends BasicMod {
 		this.setCategory(Category.MOVEMENT);
 		setAuthor("brudin");
 		addChildren(height);
-	}
-	
-	@Override
-	public void onEnable() {
-		huzuni.eventManager.addListener(this);
+		subscribe(PostMotionUpdateEvent.class, event -> getPlayer().setStepHeight(height.getValue()));
 	}
 	
 	@Override
 	public void onDisable() {
-		huzuni.eventManager.removeListener(this);
-		if (mc.thePlayer != null)
-			mc.thePlayer.stepHeight = 0.5F;
-	}
-
-	@EventMethod
-	public void onUpdate(UpdateEvent event) {
-		mc.thePlayer.stepHeight = height.getValue();
+		if (getPlayer() != null) {
+			getPlayer().setStepHeight(0.5F);
+		}
 	}
 
 }

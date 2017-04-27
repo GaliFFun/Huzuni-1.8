@@ -1,12 +1,12 @@
 package net.halalaboos.huzuni.mod.commands;
 
-import net.halalaboos.huzuni.api.mod.BasicCommand;
-import net.halalaboos.mcwrapper.api.util.TextColor;
-import net.minecraft.enchantment.Enchantment;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.nbt.NBTTagList;
-import net.minecraft.util.StatCollector;
+import net.halalaboos.huzuni.api.mod.command.impl.BasicCommand;
+import net.halalaboos.mcwrapper.api.entity.living.player.Hand;
+import net.halalaboos.mcwrapper.api.item.enchant.Enchantment;
+import net.halalaboos.mcwrapper.api.util.enums.TextColor;
+
+import static net.halalaboos.mcwrapper.api.MCWrapper.*;
+import static net.halalaboos.mcwrapper.api.entity.living.player.GameType.CREATIVE;
 
 public class Enchant extends BasicCommand {
 
@@ -25,62 +25,27 @@ public class Enchant extends BasicCommand {
 
 	@Override
 	protected void runCommand(String input, String[] args) throws Exception {
-		if (!mc.playerController.isInCreativeMode()) {
+		if (getController().getGameType() != CREATIVE) {
 			huzuni.addChatMessage("You must be in creative mode to use this command!");
 			return;
 		}
-		if (mc.thePlayer.inventory.getCurrentItem() == null) {
+		if (getPlayer().getHeldItem(Hand.MAIN).isPresent()) {
 			huzuni.addChatMessage("You must be holding an item to enchant!");
 			return;
 		}
 		if (args != null) {
-			Enchantment enchantment  = getEnchantment(args[0]);
-			if (enchantment != null) {
-				int level = enchantment.getMaxLevel();
-				if (args.length > 1) {
-					level = Integer.parseInt(args[1]);
-				}
-				addEnchant(enchantment, (short) level, mc.thePlayer.inventory.getCurrentItem());
-				huzuni.addFormattedMessage("Enchantment %s added!", enchantment.getTranslatedName(level));
-				return;
-			}
-			huzuni.addFormattedMessage("Enchantment \"%s\" not found!", TextColor.GOLD + args[0] + TextColor.GRAY);
+			getPlayer().getHeldItem(Hand.MAIN).get().addEnchant(args[0], ((short) Integer.parseInt(args[1])));
+			huzuni.addChatMessage("Enchantment added!");
 			return;
 		}
 
 		int enchantmentCount = 0;
-		for (Enchantment enchantment : Enchantment.enchantmentsBookList) {
+		for (Enchantment enchantment : getAdapter().getEnchantmentRegistry().getEnchants()) {
 			if (enchantment != null) {
-				addEnchant(enchantment, (short)1000, mc.thePlayer.inventory.getCurrentItem());
+				getPlayer().getHeldItem(Hand.MAIN).get().addEnchant(enchantment.name(), (short)1000);
 				enchantmentCount++;
 			}
 		}
 		huzuni.addFormattedMessage("Added %s enchants to your held item.", enchantmentCount);
-	}
-
-	private Enchantment getEnchantment(String name) {
-		for (Enchantment enchantment : Enchantment.enchantmentsBookList) {
-			String translatedName = StatCollector.translateToLocal(enchantment.getName());
-			if (translatedName.equalsIgnoreCase(name)
-					|| translatedName.replaceAll(" ", "").equalsIgnoreCase(name)) {
-				return enchantment;
-			}
-		}
-		return null;
-	}
-
-	private void addEnchant(Enchantment ench, short level, ItemStack itemStack) {
-		if (itemStack.getTagCompound() == null) {
-			itemStack.setTagCompound(new NBTTagCompound());
-		}
-		if (!itemStack.getTagCompound().hasKey("ench", 9)) {
-			itemStack.getTagCompound().setTag("ench", new NBTTagList());
-		}
-		NBTTagList nbttaglist = itemStack.getTagCompound().getTagList("ench", 10);
-		NBTTagCompound nbttagcompound = new NBTTagCompound();
-		nbttagcompound.setShort("id", (short)ench.effectId);
-		nbttagcompound.setShort("lvl", level);
-		nbttaglist.appendTag(nbttagcompound);
-		mc.playerController.updateController();
 	}
 }

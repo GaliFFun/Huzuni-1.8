@@ -5,9 +5,8 @@ import com.google.gson.JsonObject;
 import net.halalaboos.huzuni.Huzuni;
 import net.halalaboos.huzuni.api.gui.Theme;
 import net.halalaboos.huzuni.api.gui.WidgetManager;
-import net.halalaboos.huzuni.api.settings.Node;
-import net.halalaboos.huzuni.api.util.render.GLManager;
-import net.minecraft.client.Minecraft;
+import net.halalaboos.huzuni.api.node.Node;
+import net.halalaboos.huzuni.api.util.gl.GLUtils;
 import org.lwjgl.input.Mouse;
 
 import java.io.IOException;
@@ -17,11 +16,9 @@ import java.io.IOException;
  * */
 public abstract class Widget extends Node {
 	
-	protected static final Minecraft mc = Minecraft.getMinecraft();
-	
 	protected static final Huzuni huzuni = Huzuni.INSTANCE;
 	
-	protected final WidgetManager menuManager;
+	protected final WidgetManager widgetManager;
 		
 	protected Theme theme;
 	
@@ -33,11 +30,11 @@ public abstract class Widget extends Node {
 	
 	protected Glue oldGlue = ScreenGlue.NONE, glue = ScreenGlue.NONE;
 		
-	public Widget(String name, String description, WidgetManager menuManager) {
+	public Widget(String name, String description, WidgetManager widgetManager) {
 		super(name, description);
 		this.setWidth(100);
 		this.setHeight(12);
-		this.menuManager = menuManager;
+		this.widgetManager = widgetManager;
 	}
 
 	/**
@@ -52,14 +49,13 @@ public abstract class Widget extends Node {
 	 * */
 	public void update() {
 		if (Mouse.isButtonDown(0)) {
-			int dx = GLManager.getMouseDX(), dy = GLManager.getMouseDY();
 			if (dragging) {
-				this.x += dx;
-				this.y += dy;
+				this.x = GLUtils.getMouseX() - offsetX;
+				this.y = GLUtils.getMouseY() - offsetY;
 				ScreenGlue.keepWithinScreen(this);
-				menuManager.formatWidgets(this);
+				widgetManager.formatWidgets(this);
 				Glue newGlue = ScreenGlue.getScreenGlue(this);
-				WidgetGlue widgetGlue = menuManager.calculateWidgetGlue(this);
+				WidgetGlue widgetGlue = widgetManager.calculateWidgetGlue(this);
 				if (widgetGlue != null) {
 					newGlue = widgetGlue;
 				}
@@ -189,7 +185,7 @@ public abstract class Widget extends Node {
 	@Override
 	public boolean hasNode(JsonObject json) {
 		JsonElement name = json.get("name");
-		return name == null ? false : name.getAsString().equals(getName());
+		return name != null && name.getAsString().equals(getName());
 	}
 	
 	@Override
@@ -200,7 +196,7 @@ public abstract class Widget extends Node {
 			setX(json.get("x").getAsInt());
 			setY(json.get("y").getAsInt());
 			String glue = json.get("glue").getAsString();
-			if (!WidgetGlue.loadGlue(this, menuManager, glue))
+			if (!WidgetGlue.loadGlue(this, widgetManager, glue))
 				setGlue(ScreenGlue.load(json.get("glue").getAsString()));
 		}
 	}

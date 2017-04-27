@@ -2,19 +2,19 @@ package net.halalaboos.huzuni.mod.visual;
 
 import net.halalaboos.huzuni.api.mod.BasicMod;
 import net.halalaboos.huzuni.api.mod.Category;
-import net.halalaboos.huzuni.api.settings.ItemSelector;
-import net.halalaboos.huzuni.api.settings.Value;
-import net.minecraft.block.Block;
-import net.minecraft.client.Minecraft;
-import net.minecraft.init.Blocks;
-import net.minecraft.init.Items;
-import net.minecraft.item.ItemStack;
+import net.halalaboos.huzuni.api.node.impl.ItemSelector;
+import net.halalaboos.huzuni.api.node.impl.Value;
+import net.halalaboos.mcwrapper.api.block.Block;
+import net.halalaboos.mcwrapper.api.block.BlockTypes;
+import net.halalaboos.mcwrapper.api.block.types.Bush;
+import net.halalaboos.mcwrapper.api.item.ItemStack;
+import net.halalaboos.mcwrapper.api.item.ItemTypes;
 import org.lwjgl.input.Keyboard;
-
-import java.util.Arrays;
 
 /**
  * Shows blocks hidden behind other blocks.
+ *
+ * TODO - Make selection like it was in 1.8x versions
  * */
 public class Xray extends BasicMod {
 	
@@ -24,10 +24,6 @@ public class Xray extends BasicMod {
 	
 	public final Value opacity = new Value("Opacity", "%", 0F, 30F, 100F, 1F, "Opacity blocks are rendered with.");
 
-    private final int ignoredBlocks[] = {
-			6, 31, 32, 37, 38, 83, 106, 111, 175
-    };
-
     private float brightness = 0;
 
     private Xray() {
@@ -35,95 +31,87 @@ public class Xray extends BasicMod {
 		this.setCategory(Category.VISUAL);
 		setAuthor("Halalaboos");
 		this.addChildren(blockList);
-		blockList.addItem(new ItemStack(Items.water_bucket), Blocks.water, Blocks.flowing_water);
-		blockList.addItem(new ItemStack(Items.lava_bucket), Blocks.lava, Blocks.flowing_lava);
-		blockList.addItem(new ItemStack(Blocks.diamond_ore), Blocks.diamond_ore);
-		blockList.addItem(new ItemStack(Blocks.emerald_ore), Blocks.emerald_ore);
-		blockList.addItem(new ItemStack(Blocks.lapis_ore), Blocks.lapis_ore);
-		blockList.addItem(new ItemStack(Blocks.gold_ore), Blocks.gold_ore);
+		blockList.addItem(ItemStack.from(ItemTypes.WATER_BUCKET), BlockTypes.WATER, BlockTypes.FLOWING_WATER);
+		blockList.addItem(ItemStack.from(ItemTypes.LAVA_BUCKET), BlockTypes.LAVA, BlockTypes.FLOWING_LAVA);
+		blockList.addItem(ItemStack.from(BlockTypes.DIAMOND_ORE), BlockTypes.DIAMOND_ORE);
+		blockList.addItem(ItemStack.from(BlockTypes.EMERALD_ORE), BlockTypes.EMERALD_ORE);
+		blockList.addItem(ItemStack.from(BlockTypes.LAPIS_ORE), BlockTypes.LAPIS_ORE);
+		blockList.addItem(ItemStack.from(BlockTypes.GOLD_ORE), BlockTypes.GOLD_ORE);
 		
-		blockList.addItem(new ItemStack(Blocks.iron_ore), Blocks.iron_ore);
-		blockList.addItem(new ItemStack(Blocks.redstone_ore), Blocks.redstone_ore, Blocks.lit_redstone_ore);
-		blockList.addItem(new ItemStack(Blocks.coal_ore), Blocks.coal_ore);
-		blockList.addItem(new ItemStack(Blocks.quartz_ore), Blocks.quartz_ore);
-		blockList.addItem(new ItemStack(Blocks.diamond_block), Blocks.diamond_block);
-		blockList.addItem(new ItemStack(Blocks.emerald_block), Blocks.emerald_block);
+		blockList.addItem(ItemStack.from(BlockTypes.IRON_ORE), BlockTypes.IRON_ORE);
+		blockList.addItem(ItemStack.from(BlockTypes.REDSTONE_ORE), BlockTypes.REDSTONE_ORE, BlockTypes.LIT_REDSTONE_ORE);
+		blockList.addItem(ItemStack.from(BlockTypes.COAL_ORE), BlockTypes.COAL_ORE);
+		blockList.addItem(ItemStack.from(BlockTypes.QUARTZ_ORE), BlockTypes.QUARTZ_ORE);
+		blockList.addItem(ItemStack.from(BlockTypes.DIAMOND_BLOCK), BlockTypes.DIAMOND_BLOCK);
+		blockList.addItem(ItemStack.from(BlockTypes.EMERALD_BLOCK), BlockTypes.EMERALD_BLOCK);
 		
-		blockList.addItem(new ItemStack(Blocks.lapis_block), Blocks.lapis_block);
-		blockList.addItem(new ItemStack(Blocks.gold_block), Blocks.gold_block);
-		blockList.addItem(new ItemStack(Blocks.iron_block), Blocks.iron_block);
-		blockList.addItem(new ItemStack(Blocks.redstone_block), Blocks.redstone_block);
-		blockList.addItem(new ItemStack(Blocks.coal_block), Blocks.coal_block);
-		blockList.addItem(new ItemStack(Blocks.quartz_block), Blocks.quartz_block);
+		blockList.addItem(ItemStack.from(BlockTypes.LAPIS_BLOCK), BlockTypes.LAPIS_BLOCK);
+		blockList.addItem(ItemStack.from(BlockTypes.GOLD_BLOCK), BlockTypes.GOLD_BLOCK);
+		blockList.addItem(ItemStack.from(BlockTypes.IRON_BLOCK), BlockTypes.IRON_BLOCK);
+		blockList.addItem(ItemStack.from(BlockTypes.REDSTONE_BLOCK), BlockTypes.REDSTONE_BLOCK);
+		blockList.addItem(ItemStack.from(BlockTypes.COAL_BLOCK), BlockTypes.COAL_BLOCK);
+		blockList.addItem(ItemStack.from(BlockTypes.QUARTZ_BLOCK), BlockTypes.QUARTZ_BLOCK);
 
-		blockList.addItem(new ItemStack(Blocks.obsidian), Blocks.obsidian);
-		blockList.addItem(new ItemStack(Blocks.mossy_cobblestone), Blocks.mossy_cobblestone);
-		blockList.addItem(new ItemStack(Blocks.mob_spawner), Blocks.mob_spawner);
-		blockList.addItem(new ItemStack(Blocks.end_stone), Blocks.end_stone);
-		blockList.addItem(new ItemStack(Blocks.nether_brick), Blocks.nether_brick);
+		blockList.addItem(ItemStack.from(BlockTypes.OBSIDIAN), BlockTypes.OBSIDIAN);
+		blockList.addItem(ItemStack.from(BlockTypes.MOSSY_COBBLESTONE), BlockTypes.MOSSY_COBBLESTONE);
+		blockList.addItem(ItemStack.from(BlockTypes.MOB_SPAWNER), BlockTypes.MOB_SPAWNER);
+//		blockList.addItem(ItemStack.from(BlockTypes.END_BRICKS), BlockTypes.END_BRICKS);
+		blockList.addItem(ItemStack.from(BlockTypes.END_STONE), BlockTypes.END_STONE);
+		blockList.addItem(ItemStack.from(BlockTypes.NETHER_BRICK), BlockTypes.NETHER_BRICK);
 		
-		blockList.addItem(new ItemStack(Blocks.netherrack), Blocks.netherrack);
-		blockList.addItem(new ItemStack(Blocks.soul_sand), Blocks.soul_sand);
-		blockList.addItem(new ItemStack(Blocks.prismarine), Blocks.prismarine);
-		blockList.addItem(new ItemStack(Blocks.slime_block), Blocks.slime_block);
-		blockList.addItem(new ItemStack(Blocks.sponge), Blocks.sponge);
+		blockList.addItem(ItemStack.from(BlockTypes.NETHERRACK), BlockTypes.NETHERRACK);
+		blockList.addItem(ItemStack.from(BlockTypes.SOUL_SAND), BlockTypes.SOUL_SAND);
+//		blockList.addItem(ItemStack.from(BlockTypes.PRISMARINE), BlockTypes.PRISMARINE);
+//		blockList.addItem(ItemStack.from(BlockTypes.PURPUR_BLOCK), BlockTypes.PURPUR_BLOCK);
+//		blockList.addItem(ItemStack.from(BlockTypes.SLIME_BLOCK), BlockTypes.SLIME_BLOCK);
+//		blockList.addItem(ItemStack.from(BlockTypes.SPONGE), BlockTypes.SPONGE);
 		
-		blockList.addItem(new ItemStack(Blocks.bookshelf), Blocks.bookshelf);
-		blockList.addItem(new ItemStack(Blocks.brick_block), Blocks.brick_block);
-		blockList.addItem(new ItemStack(Blocks.cobblestone), Blocks.cobblestone);
-		blockList.addItem(new ItemStack(Blocks.hay_block), Blocks.hay_block);
-		blockList.addItem(new ItemStack(Blocks.pumpkin), Blocks.pumpkin, Blocks.lit_pumpkin);
-		blockList.addItem(new ItemStack(Blocks.log), Blocks.log, Blocks.log2);
+		blockList.addItem(ItemStack.from(BlockTypes.BOOKSHELF), BlockTypes.BOOKSHELF);
+		blockList.addItem(ItemStack.from(BlockTypes.BRICK_BLOCK), BlockTypes.BRICK_BLOCK);
+		blockList.addItem(ItemStack.from(BlockTypes.COBBLESTONE), BlockTypes.COBBLESTONE);
+		blockList.addItem(ItemStack.from(BlockTypes.HAY_BLOCK), BlockTypes.HAY_BLOCK);
+		blockList.addItem(ItemStack.from(BlockTypes.PUMPKIN), BlockTypes.PUMPKIN, BlockTypes.LIT_PUMPKIN);
+		blockList.addItem(ItemStack.from(BlockTypes.LOG), BlockTypes.LOG, BlockTypes.LOG2);
 		
-		blockList.addItem(new ItemStack(Blocks.snow), Blocks.snow);
-		blockList.addItem(new ItemStack(Blocks.wool), Blocks.wool);
-		// blockList.addItem(new ItemStack(Blocks.ICE), Blocks.ICE, Blocks.FROSTED_ICE, Blocks.PACKED_ICE);
-		blockList.addItem(new ItemStack(Blocks.bedrock), Blocks.bedrock);
-		blockList.addItem(new ItemStack(Blocks.clay), Blocks.clay);
-		blockList.addItem(new ItemStack(Blocks.hardened_clay), Blocks.hardened_clay, Blocks.stained_hardened_clay);
-
-		blockList.addItem(new ItemStack(Blocks.sand), Blocks.sand);
-		blockList.addItem(new ItemStack(Blocks.gravel), Blocks.gravel);
-		blockList.addItem(new ItemStack(Blocks.sandstone), Blocks.sandstone);
-		blockList.addItem(new ItemStack(Blocks.red_sandstone), Blocks.red_sandstone);
-		// blockList.addItem(new ItemStack(Blocks.LEAVES), Blocks.LEAVES, Blocks.LEAVES2);
-		// blockList.addItem(new ItemStack(Blocks.GLASS), Blocks.GLASS);
+		blockList.addItem(ItemStack.from(BlockTypes.SNOW), BlockTypes.SNOW);
+		blockList.addItem(ItemStack.from(BlockTypes.WOOL), BlockTypes.WOOL);
+		// blockList.addItem(ItemStack.from(BlockTypes.ICE), BlockTypes.ICE, BlockTypes.FROSTED_ICE, BlockTypes.PACKED_ICE);
+		blockList.addItem(ItemStack.from(BlockTypes.BEDROCK), BlockTypes.BEDROCK);
+		blockList.addItem(ItemStack.from(BlockTypes.CLAY), BlockTypes.CLAY);
+		blockList.addItem(ItemStack.from(BlockTypes.HARDENED_CLAY), BlockTypes.HARDENED_CLAY, BlockTypes.STAINED_HARDENED_CLAY);
+		
+		blockList.addItem(ItemStack.from(BlockTypes.SAND), BlockTypes.SAND);
+		blockList.addItem(ItemStack.from(BlockTypes.GRAVEL), BlockTypes.GRAVEL);
+		blockList.addItem(ItemStack.from(BlockTypes.SANDSTONE), BlockTypes.SANDSTONE);
+		blockList.addItem(ItemStack.from(BlockTypes.RED_SANDSTONE), BlockTypes.RED_SANDSTONE);
+		// blockList.addItem(ItemStack.from(BlockTypes.LEAVES), BlockTypes.LEAVES, BlockTypes.LEAVES2);
+		// blockList.addItem(ItemStack.from(BlockTypes.GLASS), BlockTypes.GLASS);
 		this.settings.setDisplayable(false);
 	}
 	
 	@Override
 	protected void onEnable() {
-		brightness = mc.gameSettings.gammaSetting;
-		mc.gameSettings.gammaSetting = 1000F;
+		brightness = mc.getSettings().getGamma();
+		mc.getSettings().setGamma(1000F);
 	}
-	
 
 	@Override
 	protected void onDisable() {
-		mc.gameSettings.gammaSetting = brightness;
-	}
-
-	private void fastReload() {
-    	if (mc.theWorld != null) {
-    		int x = (int) mc.thePlayer.posX;
-    		int z = (int) mc.thePlayer.posZ;
-    		int viewDistance = 16 * mc.gameSettings.renderDistanceChunks;
-			mc.theWorld.markBlockRangeForRenderUpdate(x - viewDistance, 0, z - viewDistance, x + viewDistance, 256, z + viewDistance);
-		}
+		mc.getSettings().setGamma(brightness);
 	}
 	
 	@Override
 	public void toggle() {
 		super.toggle();
-		fastReload();
+		mc.loadRenderers();
 	}
 	
 	public boolean isEnabled(Block block) {
-		return blockList.isEnabledObject(block);
+		return blockList.isEnabledObject(block) || block == BlockTypes.BED;
 	}
 
 	public boolean shouldIgnore(Block block) {
-		return Arrays.binarySearch(ignoredBlocks, Block.getIdFromBlock(block)) >= 0;
+		return !isEnabled(block) || block instanceof Bush;
 	}
 
 	public int getOpacity() {

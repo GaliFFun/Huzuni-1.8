@@ -1,10 +1,12 @@
 package net.halalaboos.huzuni.api.mod;
 
+import net.halalaboos.huzuni.api.mod.keybind.BasicKeybind;
+
 /**
  * Mod which contains a basic keybind that toggles it.
  * */
 public class BasicMod extends Mod {
-	
+
 	protected BasicKeybind keybind;
 	
 	public BasicMod(String name, String description) {

@@ -2,15 +2,17 @@ package net.halalaboos.huzuni.api.mod;
 
 import com.google.gson.JsonObject;
 import net.halalaboos.huzuni.Huzuni;
-import net.halalaboos.huzuni.api.event.KeyPressEvent;
-import net.halalaboos.huzuni.api.event.EventManager.EventMethod;
-import net.halalaboos.huzuni.api.settings.JsonFileHandler;
-import net.halalaboos.huzuni.api.settings.Node;
-import net.halalaboos.huzuni.api.settings.organize.CategoryOrganizer;
+import net.halalaboos.huzuni.api.mod.keybind.BasicKeybind;
+import net.halalaboos.huzuni.api.mod.organize.AlphabeticalOrganizer;
+import net.halalaboos.huzuni.api.node.JsonFileHandler;
+import net.halalaboos.huzuni.api.node.Node;
+import net.halalaboos.mcwrapper.api.event.input.KeyboardEvent;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+
+import static net.halalaboos.mcwrapper.api.MCWrapper.getEventManager;
 
 /**
  * Manager class provided to load, save, and provide easy access to {@link Mod}s within the application.
@@ -22,11 +24,19 @@ public final class ModManager extends JsonFileHandler {
 	public ModManager(Huzuni huzuni) {
 		super(huzuni, null);
 	}
-	
 
 	@Override
 	public void init() {
-		huzuni.eventManager.addListener(this);
+		getEventManager().subscribe(KeyboardEvent.class, event -> {
+			for (Mod mod : mods) {
+				if (mod instanceof BasicMod) {
+					BasicMod basicMod = (BasicMod) mod;
+					if (basicMod.getKeybind().getKeycode() == event.getKeyCode()) {
+						basicMod.getKeybind().pressed();
+					}
+				}
+			}
+		});
 	}
 
 	@Override
@@ -51,7 +61,7 @@ public final class ModManager extends JsonFileHandler {
 	@Override
 	public void load() {
 		super.load();
-		new CategoryOrganizer().organize(mods);
+		new AlphabeticalOrganizer(false).organize(mods);
 	}
 	
 	/**
@@ -69,6 +79,10 @@ public final class ModManager extends JsonFileHandler {
 	public void addMod(Mod mod) {
 		if (!mods.contains(mod))
 			mods.add(mod);
+	}
+
+	public void removeMod(Mod mod) {
+		mods.remove(mod);
 	}
 	
 	public Mod getMod(String name) {
@@ -116,18 +130,6 @@ public final class ModManager extends JsonFileHandler {
 	
 	public List<Mod> getMods() {
 		return mods;
-	}
-	
-	@EventMethod
-	public void onKeyPress(KeyPressEvent event) {
-		for (Mod mod : mods) {
-			if (mod instanceof BasicMod) {
-				BasicMod basicMod = (BasicMod) mod;
-				if (basicMod.getKeybind().getKeycode() == event.keyCode) {
-					basicMod.getKeybind().pressed();
-				}
-			}
-		}
 	}
 
 }

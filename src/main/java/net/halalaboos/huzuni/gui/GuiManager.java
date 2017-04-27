@@ -6,7 +6,7 @@ import net.halalaboos.huzuni.api.gui.WidgetManager;
 import net.halalaboos.huzuni.api.gui.widget.ScreenGlue;
 import net.halalaboos.huzuni.api.gui.widget.Widget;
 import net.halalaboos.huzuni.api.gui.widget.WidgetGlue;
-import net.halalaboos.huzuni.api.settings.Mode;
+import net.halalaboos.huzuni.api.node.Mode;
 import net.halalaboos.huzuni.gui.widgets.*;
 import net.halalaboos.huzuni.gui.widgets.enabled.EnabledModsWidget;
 import net.halalaboos.huzuni.gui.widgets.tabbed.TabbedMenuWidget;
@@ -55,12 +55,12 @@ public class GuiManager {
 		widgetManager.addWidget(new CoordinatesWidget(widgetManager).setGlue(ScreenGlue.BOTTOM_AND_LEFT));
 		widgetManager.addWidget(new CompassWidget(widgetManager).setGlue(ScreenGlue.CENTER_TOP));
 		widgetManager.addWidget(new FPSWidget(widgetManager));
-		widgetManager.addWidget(new MinimapWidget(widgetManager).setGlue(ScreenGlue.BOTTOM_AND_RIGHT));
 		widgetManager.addWidget(new BiomeWidget(widgetManager));
 		widgetManager.addWidget(new TimeWidget(widgetManager));
 		widgetManager.addWidget(new ArmorStatusWidget(widgetManager).setGlue(ScreenGlue.CENTER_RIGHT).setEnabled(true));
 		widgetManager.addWidget(new TextRadarWidget(widgetManager));
 		widgetManager.addWidget(new FacingWidget(widgetManager));
+		widgetManager.addWidget(new FireStatusWidget(widgetManager));
 		settingsMenu.init();
 	}
 

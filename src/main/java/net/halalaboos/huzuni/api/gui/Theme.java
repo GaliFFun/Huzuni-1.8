@@ -2,14 +2,15 @@ package net.halalaboos.huzuni.api.gui;
 
 import net.halalaboos.huzuni.Huzuni;
 import net.halalaboos.huzuni.api.gui.components.tree.NodeTreeComponent;
-import net.halalaboos.huzuni.api.settings.Nameable;
-import net.halalaboos.huzuni.api.settings.Node;
-import net.halalaboos.huzuni.api.util.render.GLManager;
-import net.halalaboos.huzuni.api.util.render.Texture;
-import net.minecraft.client.Minecraft;
+import net.halalaboos.huzuni.api.node.Node;
+import net.halalaboos.huzuni.api.node.attribute.Nameable;
+import net.halalaboos.huzuni.api.util.gl.GLUtils;
+import net.halalaboos.huzuni.api.util.gl.Texture;
 
 import java.util.HashMap;
 import java.util.Map;
+
+import static net.halalaboos.mcwrapper.api.MCWrapper.getMinecraft;
 
 /**
  * Provides render functions for {@link Component}s and {@link Container}s.
@@ -84,7 +85,7 @@ public abstract class Theme implements Nameable {
 	 * Draws the expanded/closed icon within the given location and with the given size.
 	 * */
 	public void drawExpanded(int x, int y, int size,boolean expanded) {
-		GLManager.glColor(1F, 1F, 1F, 1F);
+		GLUtils.glColor(1F, 1F, 1F, 1F);
 		icons.render(x, y, size, size, expanded ? 64F / 256F : 0F, 0F, expanded ? 128F / 256F : 64F / 256F, 64F/ 256F);
 	}
 	
@@ -92,7 +93,7 @@ public abstract class Theme implements Nameable {
 	 * Draws an arrow at the given x and y position with the given size, either facing right or left.
 	 * */
 	public void drawArrow(int x, int y, int size, boolean right, int color) {
-		GLManager.glColor(color);
+		GLUtils.glColor(color);
 		icons.render(x, y, size, size, 0F, right ? 0 : 64F / 256F, 64F / 256F, right ? 64F / 256F : 128F / 256F);
 	}
 
@@ -110,7 +111,7 @@ public abstract class Theme implements Nameable {
 		if (huzuni.settings.customFont.isEnabled())
 			huzuni.guiFontRenderer.drawString(text, x, y, color);
 		else
-			Minecraft.getMinecraft().fontRendererObj.drawString(text, x, y + 2, color);
+			getMinecraft().getTextRenderer().render(text, x, y + 2, color);
 	}
 
 	/**
@@ -120,7 +121,7 @@ public abstract class Theme implements Nameable {
 		if (huzuni.settings.customFont.isEnabled())
 			huzuni.guiFontRenderer.drawStringWithShadow(text, x, y, color);
 		else
-			Minecraft.getMinecraft().fontRendererObj.drawStringWithShadow(text, x, y + 2, color);
+			getMinecraft().getTextRenderer().render(text, x, y + 2, color);
 	}
 	
 	/**
@@ -130,7 +131,7 @@ public abstract class Theme implements Nameable {
 		if (huzuni.settings.customFont.isEnabled())
 			return huzuni.guiFontRenderer.getStringWidth(text);
 		else
-			return Minecraft.getMinecraft().fontRendererObj.getStringWidth(text);
+			return getMinecraft().getTextRenderer().getWidth(text);
 		
 	}
 	

@@ -2,10 +2,12 @@ package net.halalaboos.huzuni.gui.widgets;
 
 import net.halalaboos.huzuni.api.gui.WidgetManager;
 import net.halalaboos.huzuni.api.gui.widget.Glue;
-import net.minecraft.client.renderer.GlStateManager;
-import net.minecraft.client.renderer.RenderHelper;
-import net.minecraft.inventory.Slot;
-import net.minecraft.item.ItemStack;
+import net.halalaboos.mcwrapper.api.inventory.Slot;
+import net.halalaboos.mcwrapper.api.item.ItemStack;
+
+import java.util.Optional;
+
+import static net.halalaboos.mcwrapper.api.MCWrapper.getPlayer;
 
 /**
  * Widget which renders the player's equipped armor.
@@ -34,13 +36,13 @@ public class ArmorStatusWidget extends BackgroundWidget {
 			incrementX = 21;
 			incrementY = 0;
 		}
-		renderItemStack(getWearingArmor(0).getStack(), x + 2, y + 2);
+		renderItemStack(getWearingArmor(0).getItem(), x + 2, y + 2);
 		x += incrementX; y += incrementY;
-		renderItemStack(getWearingArmor(1).getStack(), x + 2, y + 2);
+		renderItemStack(getWearingArmor(1).getItem(), x + 2, y + 2);
 		x += incrementX; y += incrementY;
-		renderItemStack(getWearingArmor(2).getStack(), x + 2, y + 2);
+		renderItemStack(getWearingArmor(2).getItem(), x + 2, y + 2);
 		x += incrementX; y += incrementY;
-		renderItemStack(getWearingArmor(3).getStack(), x + 2, y + 2);
+		renderItemStack(getWearingArmor(3).getItem(), x + 2, y + 2);
 	}
 	
 	@Override
@@ -66,28 +68,15 @@ public class ArmorStatusWidget extends BackgroundWidget {
 	}
 	
 	private Slot getWearingArmor(int armorType) {
-		return mc.thePlayer.inventoryContainer.getSlot(5 + armorType);
+		return getPlayer().getInventoryContainer().getSlotAt(5 + armorType);
 	}
 
 	/**
 	 * Renders the item stack at the given position.
 	 * */
-	private void renderItemStack(ItemStack itemStack, int x, int y) {
-		if (itemStack == null)
+	private void renderItemStack(Optional<ItemStack> stack, int x, int y) {
+		if (!stack.isPresent())
 			return;
-		GlStateManager.pushMatrix();
-        RenderHelper.enableGUIStandardItemLighting();
-        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-        try {
-        	GlStateManager.translate(0.0F, 0.0F, 32.0F);
-        	mc.getRenderItem().zLevel = 200F;
-			mc.getRenderItem().renderItemAndEffectIntoGUI(itemStack, x, y);
-        	mc.getRenderItem().renderItemOverlayIntoGUI(mc.fontRendererObj, itemStack, x, y, "");
-        	mc.getRenderItem().zLevel = 0F;
-        } catch (Exception e) {
-        	e.printStackTrace();
-        }
-        RenderHelper.disableStandardItemLighting();
-        GlStateManager.popMatrix();
+		stack.get().renderInGui(x, y);
 	}
 }

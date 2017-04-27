@@ -1,26 +1,27 @@
 package net.halalaboos.huzuni.mod.combat;
 
 import com.google.gson.JsonObject;
-import net.halalaboos.huzuni.api.event.EventManager.EventMethod;
-import net.halalaboos.huzuni.api.event.UpdateEvent;
-import net.halalaboos.huzuni.api.event.UpdateEvent.Type;
 import net.halalaboos.huzuni.api.mod.BasicMod;
 import net.halalaboos.huzuni.api.mod.Category;
-import net.halalaboos.huzuni.api.settings.ItemList;
-import net.halalaboos.huzuni.api.settings.Nameable;
-import net.halalaboos.huzuni.api.settings.Value;
+import net.halalaboos.huzuni.api.node.attribute.Nameable;
+import net.halalaboos.huzuni.api.node.impl.ItemList;
+import net.halalaboos.huzuni.api.node.impl.Value;
 import net.halalaboos.huzuni.api.task.ClickTask;
 import net.halalaboos.huzuni.api.util.Timer;
 import net.halalaboos.huzuni.gui.Notification.NotificationType;
-import net.minecraft.enchantment.Enchantment;
-import net.minecraft.enchantment.EnchantmentHelper;
-import net.minecraft.inventory.Slot;
-import net.minecraft.item.ItemArmor;
-import net.minecraft.item.ItemStack;
+import net.halalaboos.mcwrapper.api.event.player.PreMotionUpdateEvent;
+import net.halalaboos.mcwrapper.api.inventory.Slot;
+import net.halalaboos.mcwrapper.api.item.ItemStack;
+import net.halalaboos.mcwrapper.api.item.enchant.Enchantment;
+import net.halalaboos.mcwrapper.api.item.enchant.EnchantmentTypes;
+import net.halalaboos.mcwrapper.api.item.types.Armor;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+
+import static net.halalaboos.mcwrapper.api.MCWrapper.getAdapter;
+import static net.halalaboos.mcwrapper.api.MCWrapper.getPlayer;
 
 /**
  * Automatically equips the preferred armor.
@@ -36,12 +37,12 @@ public class Autoarmor extends BasicMod {
 		}
 		@Override
 		protected void saveItem(JsonObject object, EnchantmentItem enchantmentItem) {
-			object.addProperty("enchantmentId", enchantmentItem.getEnchantment().effectId);
+			object.addProperty("enchantmentId", getAdapter().getEnchantmentRegistry().getId(enchantmentItem.getEnchantment()));
 		}
 
 		@Override
 		protected EnchantmentItem loadItem(JsonObject object) {
-			return new EnchantmentItem(Enchantment.getEnchantmentById(object.get("enchantmentId").getAsInt()));
+			return new EnchantmentItem(getAdapter().getEnchantmentRegistry().getEnchant(object.get("enchantmentId").getAsInt()));
 		}
 	
 	};
@@ -62,53 +63,51 @@ public class Autoarmor extends BasicMod {
 		setAuthor("Halalaboos");
 		this.addChildren(delay, enchantmentOrder);
 		enchantmentOrder.setOrdered(true);
-		enchantmentOrder.add(new EnchantmentItem(Enchantment.protection));
-		enchantmentOrder.add(new EnchantmentItem(Enchantment.projectileProtection));
-		enchantmentOrder.add(new EnchantmentItem(Enchantment.fireProtection));
-		enchantmentOrder.add(new EnchantmentItem(Enchantment.blastProtection));
-		enchantmentOrder.add(new EnchantmentItem(Enchantment.thorns));
+		enchantmentOrder.add(new EnchantmentItem(EnchantmentTypes.PROTECTION));
+		enchantmentOrder.add(new EnchantmentItem(EnchantmentTypes.PROJECTILE_PROTECTION));
+		enchantmentOrder.add(new EnchantmentItem(EnchantmentTypes.FIRE_PROTECTION));
+		enchantmentOrder.add(new EnchantmentItem(EnchantmentTypes.BLAST_PROTECTION));
+		enchantmentOrder.add(new EnchantmentItem(EnchantmentTypes.THORNS));
 		huzuni.clickManager.registerTaskHolder(this);
+		subscribe(PreMotionUpdateEvent.class, this::onUpdate);
 	}
-	
-	@Override
-	public void onEnable() {
-		huzuni.eventManager.addListener(this);
-	}
-	
+
 	@Override
 	public void onDisable() {
-		huzuni.eventManager.removeListener(this);
 		huzuni.clickManager.withdrawTask(clickTask);
 	}
 
-	@EventMethod
-	public void onUpdate(UpdateEvent event) {
-		if (mc.currentScreen != null || event.type == Type.POST)
+	private void onUpdate(PreMotionUpdateEvent event) {
+		if (mc.isScreenOpen())
     		return;
         List<Integer> armors = getArmor();
         for (int i : armors) {
-            Slot slot = mc.thePlayer.inventoryContainer.getSlot(i);
-            ItemArmor armor = (ItemArmor) slot.getStack().getItem();
-            if (bestSlot[armor.armorType] != -1) {
-                Slot oldSlot = mc.thePlayer.inventoryContainer.getSlot(bestSlot[armor.armorType]);
-                if (compare(armor, (ItemArmor) oldSlot.getStack().getItem(), slot.getStack(), oldSlot.getStack())) {
-                	bestSlot[armor.armorType] = i;
-                }
-            } else {
-                Slot wearingSlot = getWearingArmor(armor.armorType);
-                if (wearingSlot.getHasStack()) {
-                    if (!(wearingSlot.getStack().getItem() instanceof ItemArmor)) {
-                    	bestSlot[8 - wearingSlot.slotNumber] = i;
-                    } else {
-	                    ItemArmor wearingArmor = (ItemArmor) wearingSlot.getStack().getItem();
-	                    if (compare(armor, wearingArmor, slot.getStack(), wearingSlot.getStack())) {
-	                    	bestSlot[8 - wearingSlot.slotNumber] = i;
-	                    }
-                    }
-                } else {
-                	bestSlot[8 - wearingSlot.slotNumber] = i;
-                }	
-            }
+            Slot slot = getPlayer().getInventoryContainer().getSlotAt(i);
+            if (slot.getItem().isPresent()) {
+				Armor armor = (Armor) slot.getItem().get().getItemType();
+				if (bestSlot[armor.getType()] != -1) {
+					Slot oldSlot = getPlayer().getInventoryContainer().getSlotAt(bestSlot[armor.getType()]);
+					if (oldSlot.getItem().isPresent()) {
+						if (compare(armor, (Armor) oldSlot.getItem().get().getItemType(), slot.getItem().get(), oldSlot.getItem().get())) {
+							bestSlot[armor.getType()] = i;
+						}
+					}
+				} else {
+					Slot wearingSlot = getWearingArmor(armor.getType());
+					if (wearingSlot.getItem().isPresent()) {
+						if (!(wearingSlot.getItem().get().getItemType() instanceof Armor)) {
+							bestSlot[8 - wearingSlot.getSlotNumber()] = i;
+						} else {
+							Armor wearingArmor = (Armor) wearingSlot.getItem().get().getItemType();
+							if (compare(armor, wearingArmor, slot.getItem().get(), wearingSlot.getItem().get())) {
+								bestSlot[8 - wearingSlot.getSlotNumber()] = i;
+							}
+						}
+					} else {
+						bestSlot[8 - wearingSlot.getSlotNumber()] = i;
+					}
+				}
+			}
         }
         for (int i = 0; i < bestSlot.length; i++) {
         	if (bestSlot[i] != -1) {
@@ -125,16 +124,16 @@ public class Autoarmor extends BasicMod {
     /**
      * Compares two item stacks (and their associated item) in regards to enchantment value.
      */
-	private boolean compare(ItemArmor newArmor, ItemArmor oldArmor, ItemStack newStack, ItemStack oldStack) {
+	private boolean compare(Armor newArmor, Armor oldArmor, ItemStack newStack, ItemStack oldStack) {
 		for (int i = 0; i < enchantmentOrder.size(); i++) {
 			Enchantment enchantment = enchantmentOrder.get(i).getEnchantment();
 			int oldEnchantment, newEnchantment;
-        	if (enchantment == Enchantment.protection) {
-        		oldEnchantment = oldArmor.damageReduceAmount + EnchantmentHelper.getEnchantmentLevel(enchantment.effectId, oldStack);
-                newEnchantment = newArmor.damageReduceAmount + EnchantmentHelper.getEnchantmentLevel(enchantment.effectId, newStack);
+        	if (enchantment == EnchantmentTypes.PROTECTION) {
+        		oldEnchantment = oldArmor.getDamageReduceAmount() + enchantment.getLevel(oldStack);
+                newEnchantment = newArmor.getDamageReduceAmount() + enchantment.getLevel(newStack);
         	} else {
-        		oldEnchantment = EnchantmentHelper.getEnchantmentLevel(enchantment.effectId, oldStack);
-                newEnchantment = EnchantmentHelper.getEnchantmentLevel(enchantment.effectId, newStack);
+        		oldEnchantment = enchantment.getLevel(oldStack);
+                newEnchantment = enchantment.getLevel(newStack);
         	}
         	if (oldEnchantment == newEnchantment) {
         		continue;
@@ -149,11 +148,11 @@ public class Autoarmor extends BasicMod {
      * Attempts to replace the old armor slot with the new armor item.
      * */
 	private void replace(int newArmor, int oldArmor) {
-		Slot oldSlot = mc.thePlayer.inventoryContainer.getSlot(oldArmor);
+		Slot oldSlot = getPlayer().getInventoryContainer().getSlotAt(oldArmor);
 		if (clickTask.containsClick(newArmor, 0, 0))
 			timer.reset();
 		else if (timer.hasReach((int) delay.getValue())) {
-			if (!oldSlot.getHasStack()) {
+			if (!oldSlot.getItem().isPresent()) {
 				clickTask.add(newArmor, 0, 0);
 				clickTask.add(oldArmor, 0, 0);
 			} else {
@@ -172,10 +171,10 @@ public class Autoarmor extends BasicMod {
     private List<Integer> getArmor() {
         List<Integer> list = new ArrayList<Integer>();
         for (int o = 9; o < 45; o++) {
-            if (mc.thePlayer.inventoryContainer.getSlot(o).getHasStack()) {
-                ItemStack item = mc.thePlayer.inventoryContainer.getSlot(o).getStack();
+            if (getPlayer().getInventoryContainer().getSlotAt(o).getItem().isPresent()) {
+                net.halalaboos.mcwrapper.api.item.ItemStack item = getPlayer().getInventoryContainer().getSlotAt(o).getItem().get();
                 if (item != null)
-                    if (item.getItem() instanceof ItemArmor)
+                    if (item.getItemType() instanceof Armor)
                     	list.add(o);
             }
         }
@@ -186,7 +185,7 @@ public class Autoarmor extends BasicMod {
      * @return The slot which is associated with the given armor type.
      * */
 	private Slot getWearingArmor(int armorType) {
-		return mc.thePlayer.inventoryContainer.getSlot(8 - armorType);
+		return getPlayer().getInventoryContainer().getSlotAt(8 - armorType);
 	}
 
 	/**
@@ -202,7 +201,7 @@ public class Autoarmor extends BasicMod {
 
 		@Override
 		public String getName() {
-			return enchantment.getTranslatedName(1);
+			return enchantment.name(1);
 		}
 		
 		@Override

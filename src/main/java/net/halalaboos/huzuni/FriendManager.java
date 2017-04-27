@@ -1,7 +1,7 @@
 package net.halalaboos.huzuni;
 
 import com.google.gson.JsonObject;
-import net.halalaboos.huzuni.api.settings.JsonFileHandler;
+import net.halalaboos.huzuni.api.node.JsonFileHandler;
 
 import java.awt.*;
 import java.io.IOException;
@@ -14,9 +14,9 @@ import java.util.Map;
  * */
 public final class FriendManager extends JsonFileHandler {
 	
-	private static final Color color = new Color(0x59BFFF);
+	private static final Color color = new Color(0xBEEF);
 	
-	private final Map<String, String> friends = new HashMap<String, String>();
+	private final Map<String, String> friends = new HashMap<>();
 	
 	public FriendManager(Huzuni huzuni) {
 		super(huzuni, null);
@@ -65,7 +65,12 @@ public final class FriendManager extends JsonFileHandler {
 	 * @return True if the username is within the friends list.
 	 * */
 	public boolean isFriend(String username) {
-		return friends.containsKey(username.toLowerCase());
+		 try {
+			 return friends.containsKey(username.toLowerCase());
+		 } catch (Exception e) {
+		 	e.printStackTrace();
+		 	return false;
+		 }
 	}
 
 	/**
@@ -80,7 +85,7 @@ public final class FriendManager extends JsonFileHandler {
      * */
 	public String getAlias(String username) {
 		String alias = friends.get(username.toLowerCase());
-		return alias.isEmpty() ? username : alias;
+		return alias == null || alias.length() == 0 ? username : alias;
 	}
 	
 	public Color getColor() {

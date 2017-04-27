@@ -6,12 +6,18 @@ import net.halalaboos.huzuni.api.gui.WidgetManager;
 import net.halalaboos.huzuni.api.gui.widget.Widget;
 import net.halalaboos.huzuni.api.mod.Category;
 import net.halalaboos.huzuni.api.mod.Mod;
-import net.halalaboos.huzuni.api.settings.*;
+import net.halalaboos.huzuni.api.node.Mode;
+import net.halalaboos.huzuni.api.node.Node;
+import net.halalaboos.huzuni.api.node.impl.ItemList;
+import net.halalaboos.huzuni.api.node.impl.Toggleable;
+import net.halalaboos.huzuni.api.node.impl.Value;
 import net.halalaboos.huzuni.api.util.IncrementalPosition;
 import org.lwjgl.input.Keyboard;
 
 import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Widget which allows the user to enable/disable mods easily.
@@ -286,7 +292,7 @@ public class TabbedMenuWidget extends Widget {
 
         private final Value value;
 
-        private final DecimalFormat formatter = new DecimalFormat("#.#");
+        private final DecimalFormat formatter = new DecimalFormat("#.#", new DecimalFormatSymbols(Locale.US));
 
         public ValueTab(Value value) {
             super(value.getName(), value.getDescription());

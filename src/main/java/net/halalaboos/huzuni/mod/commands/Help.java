@@ -1,14 +1,10 @@
 package net.halalaboos.huzuni.mod.commands;
 
-import net.halalaboos.huzuni.api.mod.BasicCommand;
-import net.halalaboos.huzuni.api.mod.Command;
+import net.halalaboos.huzuni.api.mod.command.Command;
+import net.halalaboos.huzuni.api.mod.command.impl.BasicCommand;
 import net.halalaboos.huzuni.api.util.StringUtils;
-import net.halalaboos.mcwrapper.api.util.MathUtils;
-import net.halalaboos.mcwrapper.api.util.TextColor;
-import net.minecraft.client.Minecraft;
-import net.minecraft.event.ClickEvent;
-import net.minecraft.event.HoverEvent;
-import net.minecraft.util.ChatComponentText;
+import net.halalaboos.mcwrapper.api.util.enums.TextColor;
+import net.halalaboos.mcwrapper.api.util.math.MathUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -69,7 +65,7 @@ public final class Help extends BasicCommand {
 			huzuni.addChatMessage(String.format("%s'%s%d%s' is an invalid page!", TextColor.GRAY, TextColor.GOLD, wantedPage, TextColor.GRAY));
 			return;
 		}
-		Minecraft.getMinecraft().ingameGUI.getChatGUI().printChatMessage(getPageMessage(wantedPage, pages));
+		huzuni.addChatMessage(getPageMessage(wantedPage, pages));
 		for (Command command : commandsOnPage)
 			huzuni.addChatMessage(String.format("%s%s%s - %s", TextColor.GOLD, command.getAliases()[0], TextColor.GRAY, command.getDescription()));
 	}
@@ -103,12 +99,10 @@ public final class Help extends BasicCommand {
 		return MathUtils.ceil((float) (huzuni.commandManager.getCommands().size() - 1) / (float) COMMAND_PER_PAGE - 0);
 	}
 
-	private ChatComponentText getPageMessage(int wantedPage, int pages) {
-		String text = String.format("%s--- %sShowing help page %d of %d (%shelp <page>)%s ---", TextColor.GOLD, TextColor.GRAY, wantedPage, pages, huzuni.commandManager.getCommandPrefix(), TextColor.GOLD);
-		ChatComponentText output = new ChatComponentText(text);
-		int nextPage = wantedPage == getPages() ? 1 : wantedPage + 1;
-		output.getChatStyle().setChatHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new ChatComponentText("Click to go to the next page!")));
-		output.getChatStyle().setChatClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, String.format("%shelp %d", huzuni.commandManager.getCommandPrefix(), nextPage)));
-		return output;
+	private String getPageMessage(int wantedPage, int pages) {
+		return String.format("%s--- %sShowing help page %d of %d (%shelp <page>)%s ---",
+				TextColor.GOLD, TextColor.GRAY,
+				wantedPage, pages, huzuni.commandManager.getCommandPrefix(),
+				TextColor.GOLD);
 	}
 }

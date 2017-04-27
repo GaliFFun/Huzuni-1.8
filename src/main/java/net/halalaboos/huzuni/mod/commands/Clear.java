@@ -1,7 +1,7 @@
 package net.halalaboos.huzuni.mod.commands;
 
-import net.halalaboos.huzuni.api.mod.BasicCommand;
-import net.minecraft.client.Minecraft;
+import net.halalaboos.huzuni.api.mod.command.impl.BasicCommand;
+import net.halalaboos.mcwrapper.api.MCWrapper;
 
 public final class Clear extends BasicCommand {
 
@@ -11,7 +11,7 @@ public final class Clear extends BasicCommand {
 
 	@Override
 	protected void runCommand(String input, String[] args) {
-		Minecraft.getMinecraft().ingameGUI.getChatGUI().clearChatMessages();
+		MCWrapper.getMinecraft().clearMessages(true);
 	}
 
 }

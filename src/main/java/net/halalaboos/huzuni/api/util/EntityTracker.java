@@ -1,16 +1,15 @@
 package net.halalaboos.huzuni.api.util;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.entity.EntityLivingBase;
+import net.halalaboos.mcwrapper.api.entity.living.Living;
+
+import static net.halalaboos.mcwrapper.api.MCWrapper.getPlayer;
 
 /**
  * Tracks a given entity and increments the player's rotation at a given rate. Used for smoother aiming.
  * */
 public class EntityTracker {
-
-	private final Minecraft mc = Minecraft.getMinecraft();
 	
-	private EntityLivingBase entity;
+	private Living entity;
 	
 	private float currentYaw, currentPitch, rotationRate = 5F;
 	
@@ -25,17 +24,17 @@ public class EntityTracker {
 	 * */
 	public void updateRotations() {
 		float[] rotations = MinecraftUtils.getRotationsNeeded(entity);
-		float[] rotationCaps = MinecraftUtils.getEntityCaps(entity);
+		float[] rotationCaps = MinecraftUtils.getEntityCaps(entity, 6.5F);
 		float yawDifference = MinecraftUtils.getYawDifference(currentYaw, rotations[0]), pitchDifference = rotations[1] - currentPitch;
 	    float absoluteYawDifference = Math.abs(yawDifference), absolutePitchDifference = Math.abs(pitchDifference);
 		this.hasReached = absoluteYawDifference < rotationCaps[0] && absoluteYawDifference > -rotationCaps[0] && absolutePitchDifference < rotationCaps[1] && absolutePitchDifference > -rotationCaps[1];
 
 		if (this.hasReached) {
-			float realYawDifference = MinecraftUtils.getYawDifference(mc.thePlayer.rotationYaw % 360F, rotations[0]), realPitchDifference = rotations[1] - (mc.thePlayer.rotationPitch % 360F);
+			float realYawDifference = MinecraftUtils.getYawDifference(getPlayer().getYaw() % 360F, rotations[0]), realPitchDifference = rotations[1] - (getPlayer().getPitch() % 360F);
 			if (realYawDifference < rotationCaps[0] && realYawDifference > -rotationCaps[0])
-				currentYaw = mc.thePlayer.rotationYaw % 360F;
+				currentYaw = getPlayer().getYaw() % 360F;
 			if (realPitchDifference < rotationCaps[1] && realPitchDifference > -rotationCaps[1])
-				currentPitch = mc.thePlayer.rotationPitch % 360F;
+				currentPitch =  getPlayer().getPitch() % 360F;
 		} else {
 			if (yawDifference > rotationCaps[0] || yawDifference < -rotationCaps[0]) {
 				float yawAdjustment = clamp(yawDifference, rotationRate);
@@ -72,13 +71,13 @@ public class EntityTracker {
 	 * */
 	public void reset() {
 		hasReached = false;
-		if (mc.thePlayer != null) {
-			currentYaw = mc.thePlayer.rotationYaw % 360;
-			currentPitch =  mc.thePlayer.rotationPitch % 360;
+		if (getPlayer() != null) {
+			currentYaw = getPlayer().getYaw() % 360;
+			currentPitch = getPlayer().getPitch() % 360;
 		}
 	}
 	
- 	public void setEntity(EntityLivingBase entity) {
+ 	public void setEntity(Living entity) {
  		if (entity != this.entity) {
  			this.entity = entity;
  			reset();

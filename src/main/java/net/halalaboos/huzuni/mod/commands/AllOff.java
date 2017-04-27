@@ -1,7 +1,7 @@
 package net.halalaboos.huzuni.mod.commands;
 
-import net.halalaboos.huzuni.api.mod.BasicCommand;
 import net.halalaboos.huzuni.api.mod.Mod;
+import net.halalaboos.huzuni.api.mod.command.impl.BasicCommand;
 
 public final class AllOff extends BasicCommand {
 	
@@ -11,10 +11,7 @@ public final class AllOff extends BasicCommand {
     
 	@Override
 	protected void runCommand(String input, String[] args) {
-        for (Mod mod : huzuni.modManager.getMods()) {
-            if (mod.isEnabled())
-            	mod.setEnabled(false);
-        }
+        huzuni.modManager.getMods().stream().filter(Mod::isEnabled).forEach(Mod::toggle);
         huzuni.addChatMessage("All mods turned off.");
 	}
 }

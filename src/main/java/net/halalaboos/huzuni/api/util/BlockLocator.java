@@ -1,45 +1,46 @@
 package net.halalaboos.huzuni.api.util;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.util.EnumFacing;
-import net.minecraft.util.BlockPos;
-import net.minecraft.util.Vec3i;
+import net.halalaboos.mcwrapper.api.block.Block;
+import net.halalaboos.mcwrapper.api.util.enums.Face;
+import net.halalaboos.mcwrapper.api.util.math.Vector3i;
+
+import static net.halalaboos.mcwrapper.api.MCWrapper.getController;
+import static net.halalaboos.mcwrapper.api.MCWrapper.getPlayer;
 
 /**
  * Finds the closest block within a radius from the player position, starting with the blocks the player is facing.
  * */
 public abstract class BlockLocator {
 
-	private final Minecraft mc = Minecraft.getMinecraft();
-	
 	private boolean distanceCheck = true;
 	
-	private BlockPos position;
+	private Vector3i position;
 	
-	private EnumFacing face;
+	private Face face;
 	
 	/**
 	 * @return True if a block could be located within the radius.
 	 * @param radius The radius around the player to check for blocks.
-	 * @param ignoreFace When true, the {@link EnumFacing} given from the {@link getFace( EnumFacing )} function will be not be checked if null.
+	 * @param ignoreFace When true, the {@link Face} given from the {@link getFace( Face )} function will be not be checked if null.
 	 * */
 	public boolean locateClosest(float radius, boolean ignoreFace) {
-		BlockPos closestPosition = null;
-		EnumFacing closestFace = null;
+		Vector3i closestPosition = null;
+		Face closestFace = null;
 		double closestDistance = 0;
-		Vec3i directionVector = mc.thePlayer.getHorizontalFacing().getDirectionVec();
+		Vector3i directionVector = getPlayer().getFace().getDirectionVector();
 		int xIncrement = directionVector.getX() != 0 ? directionVector.getX() : 1;
 		int zIncrement = directionVector.getZ() != 0 ? directionVector.getZ() : 1;
 		
 		for (double i = -(radius * xIncrement); check(i, (radius * xIncrement), directionVector.getX() < 0); i += xIncrement) {
 			for (double j = -radius; j < radius; j++) {
 				for (double k = -(radius * zIncrement); check(k, (radius * zIncrement), directionVector.getZ() < 0); k += zIncrement) {
-					if (i == 0 && j >= -1 && j <= mc.thePlayer.getEyeHeight() && k == 0)
+					if (i == 0 && j >= -1 && j <= getPlayer().getEyeHeight() && k == 0)
 						continue;
-					BlockPos position = new BlockPos(mc.thePlayer.posX + i, mc.thePlayer.posY + j, mc.thePlayer.posZ + k);
-					double distance = MathUtils.getDistance(position);
+					Vector3i playerPos = getPlayer().getBlockPosition();
+					Vector3i position = new Vector3i(i, j, k).add(playerPos);
+					double distance = getPlayer().getDistanceTo(position);
 					if (isWithinDistance(distance) && isValidBlock(position)) {
-						EnumFacing face = getFace(position);
+						Face face = getFace(position);
 						if (face != null || ignoreFace) {
 							if (closestPosition != null) {
 								if (distance < closestDistance) {
@@ -73,20 +74,20 @@ public abstract class BlockLocator {
 	}
 	
 	/**
-	 * @return True if the {@link Block} located at the {@link BlockPos} is considered 'valid'.
+	 * @return True if the {@link Block} located at the {@link Vector3i} is considered 'valid'.
 	 * */
-	protected abstract boolean isValidBlock(BlockPos position);
+	protected abstract boolean isValidBlock(Vector3i position);
 	
 	/**
-	 * @return The {@link EnumFacing} needed for the {@link BlockPos}
+	 * @return The {@link Face} needed for the {@link Vector3i}
 	 * */
-	protected abstract EnumFacing getFace(BlockPos position);
+	protected abstract Face getFace(Vector3i position);
 	
 	/**
 	 * @return True if the {@code distance} is less than the block reach distance.
 	 * */
 	protected boolean isWithinDistance(double distance) {
-		return distanceCheck ? distance < mc.playerController.getBlockReachDistance() : true;
+		return !distanceCheck || distance < getController().getBlockReach();
 	}
 	
 	/**
@@ -105,11 +106,11 @@ public abstract class BlockLocator {
 		this.distanceCheck = distanceCheck;
 	}
 
-	public BlockPos getPosition() {
+	public Vector3i getPosition() {
 		return position;
 	}
 
-	public EnumFacing getFace() {
+	public Face getFace() {
 		return face;
 	}
 

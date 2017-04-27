@@ -9,15 +9,20 @@ import net.halalaboos.huzuni.api.gui.components.tree.*;
 import net.halalaboos.huzuni.api.gui.containers.NodeTreeSearchContainer;
 import net.halalaboos.huzuni.api.gui.containers.SingleComponentContainer;
 import net.halalaboos.huzuni.api.gui.widget.Widget;
-import net.halalaboos.huzuni.api.mod.BasicKeybind;
 import net.halalaboos.huzuni.api.mod.Mod;
 import net.halalaboos.huzuni.api.mod.ModSettings;
-import net.halalaboos.huzuni.api.settings.*;
+import net.halalaboos.huzuni.api.mod.keybind.BasicKeybind;
+import net.halalaboos.huzuni.api.node.Mode;
+import net.halalaboos.huzuni.api.node.impl.ColorNode;
+import net.halalaboos.huzuni.api.node.impl.ItemList;
+import net.halalaboos.huzuni.api.node.impl.Toggleable;
+import net.halalaboos.huzuni.api.node.impl.Value;
 import net.halalaboos.huzuni.api.task.TaskManager;
 import net.halalaboos.huzuni.api.util.IncrementalPosition;
-import net.halalaboos.huzuni.api.util.render.GLManager;
+import net.halalaboos.huzuni.api.util.gl.GLUtils;
 import net.halalaboos.huzuni.gui.containers.SettingsContainer;
-import net.minecraft.client.renderer.GlStateManager;
+
+import static net.halalaboos.mcwrapper.api.MCWrapper.getGLStateManager;
 
 /**
  * Main menu used within the mod. Allows the user to access all mods, widgets, and settings.
@@ -74,7 +79,7 @@ public class SettingsMenu {
      * Renders the menu.
      * */
 	public void renderMenu(int screenWidth, int screenHeight, int tabHeight, int padding) {
-		int tabY = GLManager.getScreenHeight() / 2;
+		int tabY = GLUtils.getScreenHeight() / 2;
 
 		height = screenHeight / 2;
 		int x = 0, y = height - height / 2;
@@ -112,15 +117,15 @@ public class SettingsMenu {
      * Renders the settings tab (the point which allows the user to expand or close the settings menu)
      * */
 	private void renderSettingsTab(int x, int y, int width, int height, String tooltip) {
-		int mouseX = GLManager.getMouseX(), mouseY = GLManager.getMouseY();
+		int mouseX = GLUtils.getMouseX(), mouseY = GLUtils.getMouseY();
 		container.getTheme().drawBackgroundRect(x, y, width, height, false);
 		boolean mouseOver = mouseX > x && mouseX < x + width && mouseY > y && mouseY < y + height;
 		
-		GlStateManager.pushMatrix();
-		GlStateManager.translate(x + height / 2 - container.getTheme().getStringHeight("Settings") / 2 + 2 - container.getTheme().getStringHeight("Settings"), y + width / 2, 0F);
-		GlStateManager.rotate(90F, 0F, 0F, 1F);
+		getGLStateManager().pushMatrix();
+		getGLStateManager().translate(x + height / 2 - container.getTheme().getStringHeight("Settings") / 2 + 2 - container.getTheme().getStringHeight("Settings"), y + width / 2, 0F);
+		getGLStateManager().rotate(90F, 0F, 0F, 1F);
 		container.getTheme().drawStringWithShadow("Settings", 0, 0, mouseOver ? 0xFFFFAA : 0xFFFFFF);
-		GlStateManager.popMatrix();
+		getGLStateManager().popMatrix();
 		
 		if (mouseOver)
 			container.getTheme().drawTooltip(tooltip, mouseX, mouseY);
@@ -145,7 +150,7 @@ public class SettingsMenu {
      * */
 	public void mouseClicked(int x, int y, int buttonId) {
 		if (expanded && expandedPosition.hasFinished()) {
-			float tabY = GLManager.getScreenHeight() / 2;
+			float tabY = GLUtils.getScreenHeight() / 2;
 			if (x > WIDTH && x < WIDTH + TAB_WIDTH && y > tabY - TAB_HEIGHT && y < tabY + TAB_HEIGHT) {
 				this.expanded = !expanded;
 				return;
@@ -156,7 +161,7 @@ public class SettingsMenu {
 			}
 			container.mouseClicked(x, y, buttonId);
 		} else {
-			int tabY = GLManager.getScreenHeight() / 2;
+			int tabY = GLUtils.getScreenHeight() / 2;
 			if (x > 0 && x < TAB_WIDTH && y > tabY - TAB_HEIGHT && y < tabY + TAB_HEIGHT)
 				this.expanded = !expanded;
 		}
@@ -221,9 +226,11 @@ public class SettingsMenu {
 	private Container generateSettings() {
 		NodeTree tree = new NodeTree(0, 0, 0, 0);
 		tree.add(TreeComponentFactory.getComponent(Huzuni.INSTANCE.settings.keyOpenMenu));
+		tree.add(TreeComponentFactory.getComponent(Huzuni.INSTANCE.settings.keyOpenTest));
 		tree.add(TreeComponentFactory.getComponent(Huzuni.INSTANCE.settings.team));
 		tree.add(TreeComponentFactory.getComponent(Huzuni.INSTANCE.settings.lineSettings));
 		tree.add(TreeComponentFactory.getComponent(Huzuni.INSTANCE.settings.menuSettings));
+		tree.add(TreeComponentFactory.getComponent(Huzuni.INSTANCE.settings.minecraftSettings));
 		tree.add(TreeComponentFactory.getComponent(Huzuni.INSTANCE.lookManager));
 		tree.add(TreeComponentFactory.getComponent(Huzuni.INSTANCE.hotbarManager));
 		tree.add(TreeComponentFactory.getComponent(Huzuni.INSTANCE.clickManager));

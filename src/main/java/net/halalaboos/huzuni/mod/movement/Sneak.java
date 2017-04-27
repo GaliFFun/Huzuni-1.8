@@ -1,37 +1,27 @@
 package net.halalaboos.huzuni.mod.movement;
 
-import net.halalaboos.huzuni.api.event.EventManager.EventMethod;
-import net.halalaboos.huzuni.api.event.UpdateEvent;
 import net.halalaboos.huzuni.api.mod.BasicMod;
 import net.halalaboos.huzuni.api.mod.Category;
-import net.minecraft.client.settings.KeyBinding;
+import net.halalaboos.mcwrapper.api.client.GameKeybind;
+import net.halalaboos.mcwrapper.api.event.player.PostMotionUpdateEvent;
 import org.lwjgl.input.Keyboard;
+
+import static net.halalaboos.mcwrapper.api.MCWrapper.getSettings;
 
 /**
  * Forces the player to sneak.
- * */
+ */
 public class Sneak extends BasicMod {
 	
 	public Sneak() {
 		super("Sneak", "Forces you to sneak", Keyboard.KEY_Z);
 		setAuthor("brudin");
 		this.setCategory(Category.MOVEMENT);
-	}
-	
-	@Override
-	public void onEnable() {
-		huzuni.eventManager.addListener(this);
+		subscribe(PostMotionUpdateEvent.class, event -> getSettings().setKeyState(GameKeybind.SNEAK, true));
 	}
 	
 	@Override
 	public void onDisable() {
-		huzuni.eventManager.removeListener(this);
-		KeyBinding.setKeyBindState(mc.gameSettings.keyBindSneak.getKeyCode(), false);
+		getSettings().setKeyState(GameKeybind.SNEAK, false);
 	}
-
-	@EventMethod
-	public void onUpdate(UpdateEvent event) {
-		KeyBinding.setKeyBindState(mc.gameSettings.keyBindSneak.getKeyCode(), true);
-	}
-
 }

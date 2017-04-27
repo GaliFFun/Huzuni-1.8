@@ -1,26 +1,33 @@
 package net.halalaboos.huzuni.mod.mining;
 
-import net.halalaboos.huzuni.api.event.LoadWorldEvent;
-import net.halalaboos.huzuni.api.event.EventManager.EventMethod;
-import net.halalaboos.huzuni.api.event.UpdateEvent;
-import net.halalaboos.huzuni.api.event.UpdateEvent.Type;
 import net.halalaboos.huzuni.api.mod.BasicMod;
 import net.halalaboos.huzuni.api.mod.Category;
-import net.halalaboos.huzuni.api.settings.Mode;
-import net.halalaboos.huzuni.api.settings.Toggleable;
-import net.halalaboos.huzuni.api.settings.Value;
+import net.halalaboos.huzuni.api.node.Mode;
+import net.halalaboos.huzuni.api.node.impl.Toggleable;
+import net.halalaboos.huzuni.api.node.impl.Value;
 import net.halalaboos.huzuni.api.task.MineTask;
 import net.halalaboos.huzuni.api.task.PlaceTask;
 import net.halalaboos.huzuni.api.util.BlockLocator;
-import net.minecraft.block.*;
-import net.minecraft.block.state.IBlockState;
-import net.minecraft.init.Blocks;
-import net.minecraft.item.*;
-import net.minecraft.util.EnumFacing;
-import net.minecraft.util.BlockPos;
+import net.halalaboos.mcwrapper.api.block.Block;
+import net.halalaboos.mcwrapper.api.block.BlockTypes;
+import net.halalaboos.mcwrapper.api.block.types.Crops;
+import net.halalaboos.mcwrapper.api.block.types.Farmland;
+import net.halalaboos.mcwrapper.api.event.player.PreMotionUpdateEvent;
+import net.halalaboos.mcwrapper.api.event.world.WorldLoadEvent;
+import net.halalaboos.mcwrapper.api.item.ItemStack;
+import net.halalaboos.mcwrapper.api.item.ItemTypes;
+import net.halalaboos.mcwrapper.api.item.types.Hoe;
+import net.halalaboos.mcwrapper.api.item.types.Seeds;
+import net.halalaboos.mcwrapper.api.util.enums.Face;
+import net.halalaboos.mcwrapper.api.util.math.Vector3i;
+
+import static net.halalaboos.mcwrapper.api.MCWrapper.getPlayer;
+import static net.halalaboos.mcwrapper.api.MCWrapper.getWorld;
 
 /**
  * Automatically performs farming tasks for the user.
+ *
+ * TODO: Fix bugs
  * */
 public final class Autofarm extends BasicMod {
 	
@@ -49,73 +56,61 @@ public final class Autofarm extends BasicMod {
 	private final PlaceTask placeTask = new PlaceTask(this) {
 		@Override
 		protected boolean hasRequiredItem(ItemStack item) {
-			return mode.getSelected() == 3 ? item.getItem() instanceof ItemHoe : mode.getSelected() == 2 ? (item.getItem() instanceof ItemDye && item.getMetadata() == 15) : (item.getItem() instanceof ItemSeeds || item.getItem() instanceof ItemSeedFood);
+			return mode.getSelected() == 3 ? item.getItemType() instanceof Hoe : mode.getSelected() == 2 ? (item.getItemType() == ItemTypes.DYE && item.getData() == 15) : (item.getItemType() instanceof Seeds);
 		}
 		
 		@Override
 		public boolean shouldResetBlock() {
-			IBlockState blockState = getBlockState();
-			return mode.getSelected() == 3 ? !isDirt(blockState) : (mode.getSelected() == 2 ? blockState.getBlock().getMetaFromState(blockState) >= getMaxGrowthLevel(blockState.getBlock()) : super.shouldResetBlock());
+			Block block = getBlock();
+			if (isCrop(block) && mode.getSelected() == 2) {
+				Crops crops = ((Crops) block);
+				return crops.isGrown(position);
+			}
+			return mode.getSelected() == 3 ? !isDirt(block) : super.shouldResetBlock();
 		}
 	};
 	
 	private final BlockLocator blockLocator = new BlockLocator() {
 
 		@Override
-		protected boolean isValidBlock(BlockPos position) {
-			IBlockState blockState = mc.theWorld.getBlockState(position);
+		protected boolean isValidBlock(Vector3i position) {
+			Block block = getWorld().getBlock(position);
 			switch (mode.getSelected()) {
 				case 0:
-					if (isCrop(blockState)) {
-						BlockCrops crops = (BlockCrops) blockState.getBlock();
-						return getGrowthLevel(position) >= getMaxGrowthLevel(crops);
+					if (isCrop(block)) {
+						Crops crops = (Crops) block;
+						return crops.isGrown(position);
 					}
 					break;
 				case 1:
-					return isFarmland(blockState) && !(mc.theWorld.getBlockState(position.up()).getBlock() instanceof BlockCrops);
+					return isFarmland(block) && !(getWorld().getBlock(position.up()) instanceof Crops);
 				case 2:
-					if (isCrop(blockState)) {
-						BlockCrops crops = (BlockCrops) blockState.getBlock();
-						int age = crops.getMetaFromState(blockState);
-						return age < getMaxGrowthLevel(crops);
+					if (isCrop(block)) {
+						Crops crops = (Crops) block;
+						int age = crops.getAge(position);
+						return age < crops.getMaxAge();
 					}
 					break;
 				case 3:
-					return isDirt(blockState);
+					return isDirt(block);
 			}
 			return false;
 		}
 
 		@Override
-		protected EnumFacing getFace(BlockPos position) {
+		protected Face getFace(Vector3i position) {
 			switch (mode.getSelected()) {
 				case 0:
 				case 2:
-					return mc.thePlayer.getHorizontalFacing().getOpposite();
+					return getPlayer().getFace().getOppositeFace();
 				case 1:
 				case 3:
-					return EnumFacing.UP;
+					return Face.UP;
 			}
 			return null;
 		}
 		
 	};
-
-	private int getGrowthLevel(BlockPos blockPos) {
-		IBlockState blockState = mc.theWorld.getBlockState(blockPos);
-		return blockState.getBlock().getMetaFromState(blockState);
-	}
-
-	private int getMaxGrowthLevel(Block block) {
-		if (block == Blocks.carrots || block == Blocks.potatoes || block == Blocks.wheat)
-			return 7;
-		else if (block == Blocks.nether_wart)
-			return 3;
-		else if (block == Blocks.cocoa)
-			return 2;
-		else
-			return 0;
-	}
 
 	public Autofarm() {
 		super("Auto farm", "Harvest/plant crops automagically");
@@ -124,24 +119,24 @@ public final class Autofarm extends BasicMod {
 		this.setCategory(Category.MINING);
 		silent.setEnabled(true);
 		huzuni.lookManager.registerTaskHolder(this);
-	}
-	
-	@Override
-	public void onEnable() {
-		huzuni.eventManager.addListener(this);
+		subscribe(WorldLoadEvent.class, event -> {
+			if (mineTask.hasBlock())
+				huzuni.lookManager.withdrawTask(mineTask);
+			if (placeTask.hasBlock())
+				huzuni.lookManager.withdrawTask(placeTask);
+		});
+		subscribe(PreMotionUpdateEvent.class, this::onUpdate);
 	}
 	
 	@Override
 	public void onDisable() {
-		huzuni.eventManager.removeListener(this);
 		huzuni.lookManager.withdrawTask(mineTask);
 		huzuni.lookManager.withdrawTask(placeTask);
 		blockLocator.reset();
 	}
 
-	@EventMethod
-	public void onUpdate(UpdateEvent event) {
-		if (huzuni.lookManager.hasPriority(this) && event.type == Type.PRE) {
+	private void onUpdate(PreMotionUpdateEvent event) {
+		if (huzuni.lookManager.hasPriority(this)) {
 			mineTask.setReset(silent.isEnabled());
 			placeTask.setReset(silent.isEnabled());
 			mineTask.setMineDelay((int) mineDelay.getValue());
@@ -174,14 +169,6 @@ public final class Autofarm extends BasicMod {
 			}
 		}
 	}
-
-	@EventMethod
-	public void onWorldLoad(LoadWorldEvent event) {
-		if (mineTask.hasBlock())
-			huzuni.lookManager.withdrawTask(mineTask);
-		if (placeTask.hasBlock())
-			huzuni.lookManager.withdrawTask(placeTask);
-	}
 	
 	@Override
 	public String getDisplayNameForRender() {
@@ -191,22 +178,22 @@ public final class Autofarm extends BasicMod {
 	/**
      * @return True if the block state is dirt.
      * */
-	private boolean isDirt(IBlockState blockState) {
-		return blockState.getBlock() != Blocks.air && (blockState.getBlock() instanceof BlockDirt || blockState.getBlock() instanceof BlockGrass);
+	private boolean isDirt(Block block) {
+		return block != BlockTypes.AIR && (block == BlockTypes.DIRT || block == BlockTypes.GRASS);
 	}
 
 	/**
      * @return True if the block state is farm land.
      * */
-	private boolean isFarmland(IBlockState blockState) {
-		return blockState.getBlock() != Blocks.air && blockState.getBlock() instanceof BlockFarmland;
+	private boolean isFarmland(Block block) {
+		return block != BlockTypes.AIR && block instanceof Farmland;
 	}
 
 	/**
      * @return True if the block state is a crop.
      * */
-	private boolean isCrop(IBlockState blockState) {
-		return blockState.getBlock() != Blocks.air && blockState.getBlock() instanceof BlockCrops;
+	private boolean isCrop(Block block) {
+		return block != BlockTypes.AIR && block instanceof Crops;
 	}
 	
 }

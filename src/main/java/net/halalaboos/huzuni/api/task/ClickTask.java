@@ -1,29 +1,29 @@
 package net.halalaboos.huzuni.api.task;
 
-import net.halalaboos.huzuni.api.mod.Mod;
+import net.halalaboos.huzuni.api.node.attribute.Nameable;
 import net.halalaboos.huzuni.api.util.Timer;
-import net.minecraft.client.Minecraft;
+import net.halalaboos.mcwrapper.api.util.enums.ClickType;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import static net.halalaboos.mcwrapper.api.MCWrapper.getController;
+import static net.halalaboos.mcwrapper.api.MCWrapper.getPlayer;
+
 /**
  * Handles window clicks and applies a delay between each window click.
  */
-public class ClickTask implements Task {
+public class ClickTask extends BasicTask {
 
     protected final Timer timer = new Timer();
 
     protected final List<int[]> clickData = new ArrayList<>();
 
-    protected final Mod mod;
-
-    protected boolean running = false;
-
     protected int delay = 120;
 
-    public ClickTask(Mod mod) {
-        this.mod = mod;
+    public ClickTask(Nameable handler) {
+        super(handler);
+        addDependency("inventory");
     }
 
     @Override
@@ -39,7 +39,7 @@ public class ClickTask implements Task {
                 if (click.length > 3)
                     clickSlot(click[0], click[1], click[2], click[3]);
                 else
-                    clickSlot(Minecraft.getMinecraft().thePlayer.inventoryContainer.windowId, click[0], click[1], click[2]);
+                    clickSlot(getPlayer().getInventoryContainer().getId(), click[0], click[1], click[2]);
                 clickData.remove(click);
                 timer.reset();
             }
@@ -51,7 +51,7 @@ public class ClickTask implements Task {
      * Performs the slot click.
      * */
     private void clickSlot(int windowId, int slot, int mouse, int shift) {
-        Minecraft.getMinecraft().playerController.windowClick(windowId, slot, mouse, shift == 0 ? ClickType.PICKUP.ordinal() : ClickType.QUICK_MOVE.ordinal(), Minecraft.getMinecraft().thePlayer);
+        getController().clickSlot(windowId, slot, mouse, shift == 0 ? ClickType.PICKUP : ClickType.QUICK_MOVE);
     }
 
     /**
@@ -64,21 +64,6 @@ public class ClickTask implements Task {
     @Override
     public void onPostUpdate() {
 
-    }
-
-    @Override
-    public boolean isRunning() {
-        return running;
-    }
-
-    @Override
-    public void setRunning(boolean running) {
-        this.running = running;
-    }
-
-    @Override
-    public Mod getMod() {
-        return mod;
     }
 
     /**
@@ -133,14 +118,4 @@ public class ClickTask implements Task {
     public void setDelay(int delay) {
         this.delay = delay;
     }
-
-	private enum ClickType {
-		PICKUP,
-		QUICK_MOVE,
-		SWAP,
-		CLONE,
-		THROW,
-		QUICK_CRAFT,
-		PICKUP_ALL;
-	}
 }

@@ -1,9 +1,8 @@
 package net.halalaboos.huzuni.mod.commands;
 
-import net.halalaboos.huzuni.api.mod.BasicCommand;
+import net.halalaboos.huzuni.api.mod.command.impl.BasicCommand;
 import net.halalaboos.huzuni.api.util.StringUtils;
-import net.minecraft.client.Minecraft;
-import net.minecraft.network.play.client.C01PacketChatMessage;
+import net.halalaboos.mcwrapper.api.MCWrapper;
 
 public final class Say extends BasicCommand {
 
@@ -19,7 +18,7 @@ public final class Say extends BasicCommand {
 	@Override
 	protected void runCommand(String input, String[] args) {
 		String text = StringUtils.getAfter(input, 1);
-		Minecraft.getMinecraft().getNetHandler().addToSendQueue(new C01PacketChatMessage(text));
+		MCWrapper.getPlayer().sendMessage(text);
 	}
 	
 }

@@ -1,46 +1,47 @@
 package net.halalaboos.huzuni.mod.mining;
 
 import net.halalaboos.huzuni.RenderManager.Renderer;
-import net.halalaboos.huzuni.api.event.EventManager.EventMethod;
-import net.halalaboos.huzuni.api.event.MouseClickEvent;
-import net.halalaboos.huzuni.api.event.UpdateEvent;
-import net.halalaboos.huzuni.api.event.UpdateEvent.Type;
-import net.halalaboos.huzuni.api.mod.BasicCommand;
 import net.halalaboos.huzuni.api.mod.BasicMod;
 import net.halalaboos.huzuni.api.mod.Category;
-import net.halalaboos.huzuni.api.settings.Mode;
-import net.halalaboos.huzuni.api.settings.Toggleable;
-import net.halalaboos.huzuni.api.settings.Value;
+import net.halalaboos.huzuni.api.mod.command.impl.BasicCommand;
+import net.halalaboos.huzuni.api.node.Mode;
+import net.halalaboos.huzuni.api.node.impl.Toggleable;
+import net.halalaboos.huzuni.api.node.impl.Value;
 import net.halalaboos.huzuni.api.task.PlaceTask;
-import net.halalaboos.huzuni.api.util.MathUtils;
 import net.halalaboos.huzuni.api.util.MinecraftUtils;
-import net.halalaboos.huzuni.api.util.render.Box;
-import net.halalaboos.huzuni.api.util.render.GLManager;
+import net.halalaboos.huzuni.api.util.gl.Box;
+import net.halalaboos.huzuni.api.util.gl.GLUtils;
 import net.halalaboos.huzuni.gui.Notification.NotificationType;
 import net.halalaboos.huzuni.mod.mining.templates.*;
-import net.minecraft.client.renderer.GlStateManager;
-import net.minecraft.init.Blocks;
-import net.minecraft.util.EnumFacing;
-import net.minecraft.util.AxisAlignedBB;
-import net.minecraft.util.BlockPos;
-import net.minecraft.util.MovingObjectPosition;
+import net.halalaboos.mcwrapper.api.event.input.MouseEvent;
+import net.halalaboos.mcwrapper.api.event.player.PreMotionUpdateEvent;
+import net.halalaboos.mcwrapper.api.util.enums.Face;
+import net.halalaboos.mcwrapper.api.util.enums.MouseButton;
+import net.halalaboos.mcwrapper.api.util.math.AABB;
+import net.halalaboos.mcwrapper.api.util.math.Result;
+import net.halalaboos.mcwrapper.api.util.math.Vector3i;
 
 import java.io.File;
 import java.util.List;
+import java.util.Optional;
+
+import static net.halalaboos.mcwrapper.api.MCWrapper.*;
 
 /**
  * Places blocks based on templates.
+ *
+ * TODO: Port to MCWrapper
  * */
 public final class Replica extends BasicMod implements Renderer {
-	
+
 	private final PlaceTask placeTask = new PlaceTask(this);
-	
+
 	public final Value placeDelay = new Value("Place delay", " ms", 0F, 100F, 500F, 5F, "Delay in MS between placing of each block");
 
 	public final Toggleable silent = new Toggleable("Silent", "Adjust player rotation server-sided only");
-	
+
 	public final Mode<Template> mode = new Mode<Template>("Template", "Select which template will be used", new WallsTemplate(), new RectangleTemplate(), new CylinderTemplate(), new SwastikaTemplate(), new PortalTemplate(), new PenisTemplate()) {
-		
+
 		@Override
 		public void setSelectedItem(int selectedItem) {
 			super.setSelectedItem(selectedItem);
@@ -51,7 +52,7 @@ public final class Replica extends BasicMod implements Renderer {
 	private final TemplateBuilder templateBuilder = new TemplateBuilder();
 
 	private final Box box;
-	
+
 	// TODO: sphere, tunnel, stairs
 	public Replica() {
 		super("Replica", "Replicates blocks from a template");
@@ -62,14 +63,14 @@ public final class Replica extends BasicMod implements Renderer {
 		templateBuilder.setTemplate(mode.getSelectedItem());
 		huzuni.lookManager.registerTaskHolder(this);
 		placeTask.setNaturalPlacement(false);
-		box = new Box(new AxisAlignedBB(0F, 0F, 0F, 1F, 1F, 1F), true);
+		box = new Box(new AABB(0F, 0F, 0F, 1F, 1F, 1F), true);
 		huzuni.commandManager.addCommand(new BasicCommand("template", "loads templates from text documents") {
-			
+
 			@Override
 			public void giveHelp() {
 				huzuni.addChatMessage(".template \"file\"");
 			}
-			
+
 			@Override
 			protected void runCommand(String input, String[] args) throws Exception {
 				File file = new File(huzuni.getSaveFolder(), args[0]);
@@ -83,81 +84,81 @@ public final class Replica extends BasicMod implements Renderer {
 					e.printStackTrace();
 				}
 			}
-		
+
 		});
+
+		subscribe(MouseEvent.class, this::onMouseClicked);
+		subscribe(PreMotionUpdateEvent.class, this::onUpdate);
 	}
 
 	@Override
 	public void onEnable() {
-		huzuni.eventManager.addListener(this);
 		huzuni.renderManager.addWorldRenderer(this);
 		huzuni.addNotification(NotificationType.INFO, this, 5000, "Right-click a block to begin building a template!");
 	}
-	
+
 	@Override
 	public void onDisable() {
-		huzuni.eventManager.removeListener(this);
 		huzuni.renderManager.removeWorldRenderer(this);
 		huzuni.lookManager.withdrawTask(placeTask);
 		templateBuilder.resetPositions();
 	}
-	
-	@EventMethod
-	public void onUpdate(UpdateEvent event) {
-		if (event.type == Type.PRE) {
-			if (placeTask.hasBlock() && placeTask.isWithinDistance() && !placeTask.shouldResetBlock()) {
-				placeTask.setPlaceDelay((int) placeDelay.getValue());
-				placeTask.setReset(silent.isEnabled());
-				huzuni.lookManager.requestTask(this, placeTask);
-			} else {
-				huzuni.lookManager.withdrawTask(placeTask);
-				BlockPos closestPosition = null;
-				EnumFacing closestFace = null;
-				double closestDistance = 0;
-				for (int i = 0; i < templateBuilder.getPositions().size(); i++) {
-					BlockPos position = templateBuilder.getPositions().get(i);
-					double distance = MathUtils.getDistance(position);
-					if (distance < mc.playerController.getBlockReachDistance() && !mc.thePlayer.getPosition().equals(position)) {
-						EnumFacing face = MinecraftUtils.getAdjacent(position);
-						if (face != null) {
-							if (closestPosition != null) {
-								if (distance < closestDistance) {
-									closestPosition = position;
-									closestDistance = distance;
-									closestFace = face;
-								}
-							} else {
+
+	private void onUpdate(PreMotionUpdateEvent event) {
+		if (placeTask.hasBlock() && placeTask.isWithinDistance() && !placeTask.shouldResetBlock()) {
+			placeTask.setPlaceDelay((int) placeDelay.getValue());
+			placeTask.setReset(silent.isEnabled());
+			huzuni.lookManager.requestTask(this, placeTask);
+		} else {
+			huzuni.lookManager.withdrawTask(placeTask);
+			Vector3i closestPosition = null;
+			Face closestFace = null;
+			double closestDistance = 0;
+			for (int i = 0; i < templateBuilder.getPositions().size(); i++) {
+				Vector3i position = templateBuilder.getPositions().get(i);
+				double distance = getPlayer().getDistanceTo(position);
+				if (distance < getController().getBlockReach() && !getPlayer().getBlockPosition().equals(position)) {
+					Face face = MinecraftUtils.getAdjacent(position);
+					if (face != null) {
+						if (closestPosition != null) {
+							if (distance < closestDistance) {
 								closestPosition = position;
 								closestDistance = distance;
 								closestFace = face;
 							}
+						} else {
+							closestPosition = position;
+							closestDistance = distance;
+							closestFace = face;
 						}
 					}
 				}
-				if (closestPosition != null) {
-					placeTask.setBlock(closestPosition.offset(closestFace), closestFace.getOpposite());
-					placeTask.setPlaceDelay((int) placeDelay.getValue());
-					placeTask.setReset(silent.isEnabled());
-					huzuni.lookManager.requestTask(this, placeTask);
-				} else
-					placeTask.setBlock(null, null);
+			}
+			if (closestPosition != null) {
+				Vector3i pos = closestPosition.offset(closestFace);
+				Face face = closestFace.getOppositeFace();
+				placeTask.setBlock(pos, face);
+				placeTask.setPlaceDelay((int) placeDelay.getValue());
+				placeTask.setReset(silent.isEnabled());
+				huzuni.lookManager.requestTask(this, placeTask);
+			} else
+				placeTask.setBlock(null, null);
+		}
+	}
+
+	private void onMouseClicked(MouseEvent event) {
+		if (event.getButton() == MouseButton.RIGHT) {
+			Optional<Result> result = mc.getMouseResult();
+			if (result.isPresent()) {
+				if (result.get() == Result.BLOCK) {
+					if (!templateBuilder.hasPositions()) {
+						templateBuilder.addSelection(mc.getMouseVector(), mc.getMouseFace()	);
+					}
+				}
 			}
 		}
 	}
 
-	@EventMethod
-	public void onMouseClicked(MouseClickEvent event) {
-		if (event.buttonId == 1) {
-			if (mc.objectMouseOver != null) {
-				if (mc.objectMouseOver.typeOfHit == MovingObjectPosition.MovingObjectType.BLOCK) {
-					if (!templateBuilder.hasPositions()) {
-						templateBuilder.addSelection(mc.objectMouseOver.getBlockPos(), mc.objectMouseOver.sideHit);
-					}
-				}
-			}
-		}
-	}
-	
 	@Override
 	public String getDisplayNameForRender() {
 		return settings.getDisplayName() + (templateBuilder.hasPositions() ? " (" + templateBuilder.getPositions().size() + ")" : "");
@@ -166,13 +167,13 @@ public final class Replica extends BasicMod implements Renderer {
 	@Override
 	public void render(float partialTicks) {
 		if (!templateBuilder.hasPositions()) {
-			if (templateBuilder.canPreview() && mc.objectMouseOver != null && mc.objectMouseOver.typeOfHit == MovingObjectPosition.MovingObjectType.BLOCK) {
-				renderPreview(mc.objectMouseOver.getBlockPos(), mc.objectMouseOver.sideHit);
+			if (templateBuilder.canPreview() && mc.getMouseResult().isPresent() && mc.getMouseResult().get() == Result.BLOCK) {
+				renderPreview(mc.getMouseVector(), mc.getMouseFace());
 			}
 		} else {
 			for (int i = 0; i < templateBuilder.getPositions().size(); i++) {
-				BlockPos position = templateBuilder.getPositions().get(i);
-				if (mc.theWorld.getBlockState(position).getBlock() != Blocks.air) {
+				Vector3i position = templateBuilder.getPositions().get(i);
+				if (getWorld().blockExists(position)) {
 					templateBuilder.getPositions().remove(position);
 					if (templateBuilder.getPositions().isEmpty()) {
 						huzuni.addNotification(NotificationType.CONFIRM, this, 5000, "Finished!");
@@ -185,29 +186,28 @@ public final class Replica extends BasicMod implements Renderer {
 	}
 
 	/**
-     * Renders a preview of the current template with the next position being the position provided.
-     * */
-	public void renderPreview(BlockPos position, EnumFacing face) {
-		List<BlockPos> previewPositions = templateBuilder.getPreview(position, face);
-		for (int i = 0; i < previewPositions.size(); i++) {
-			BlockPos previewPosition = previewPositions.get(i);
+	 * Renders a preview of the current template with the next position being the position provided.
+	 * */
+	public void renderPreview(Vector3i position, Face face) {
+		List<Vector3i> previewPositions = templateBuilder.getPreview(position, face);
+		for (Vector3i previewPosition : previewPositions) {
 			renderBox(previewPosition);
 		}
 	}
-	
-	private void renderBox(BlockPos position) {
+
+	private void renderBox(Vector3i position) {
 		renderBox(position.getX(), position.getY(), position.getZ());
 	}
-	
+
 	private void renderBox(int x, int y, int z) {
-		float renderX = (float) (x - mc.getRenderManager().viewerPosX);
-		float renderY = (float) (y - mc.getRenderManager().viewerPosY);
-		float renderZ = (float) (z - mc.getRenderManager().viewerPosZ);
-		GlStateManager.pushMatrix();
-		GlStateManager.translate(renderX, renderY, renderZ);
-		GLManager.glColor(1F, 1F, 1F, 0.2F);
+		float renderX = (float) (x - mc.getCamera().getX());
+		float renderY = (float) (y - mc.getCamera().getY());
+		float renderZ = (float) (z - mc.getCamera().getZ());
+		getGLStateManager().pushMatrix();
+		getGLStateManager().translate(renderX, renderY, renderZ);
+		GLUtils.glColor(1F, 1F, 1F, 0.2F);
 		box.render();
-		GlStateManager.popMatrix();
+		getGLStateManager().popMatrix();
 	}
 
 	/*

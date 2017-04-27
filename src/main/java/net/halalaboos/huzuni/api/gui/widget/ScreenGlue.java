@@ -1,7 +1,9 @@
 package net.halalaboos.huzuni.api.gui.widget;
 
-import net.halalaboos.huzuni.api.util.render.GLManager;
-import net.minecraft.client.Minecraft;
+import net.halalaboos.huzuni.api.util.gl.GLUtils;
+
+import static net.halalaboos.huzuni.api.util.MinecraftUtils.getPotionY;
+import static net.halalaboos.mcwrapper.api.MCWrapper.getPlayer;
 
 /**
  * Formats the positions of widgets based on the entire screen. <br/>
@@ -12,9 +14,9 @@ import net.minecraft.client.Minecraft;
  * */
 public enum ScreenGlue implements Glue {
 	NONE(2, 2),
-	TOP(2, 0),
+	TOP(2, 0), 
 	RIGHT(0, 2),
-	BOTTOM(2, 1),
+	BOTTOM(2, 1), 
 	LEFT(1, 2),
 	CENTER_TOP(3, 0),
 	CENTER_RIGHT(0, 3),
@@ -22,69 +24,69 @@ public enum ScreenGlue implements Glue {
 	CENTER_BOTTOM(3, 1),
 	TOP_AND_RIGHT(0, 0), BOTTOM_AND_RIGHT(0, 1),
 	TOP_AND_LEFT(1, 0), BOTTOM_AND_LEFT(1, 1);
-
+	
 	private static final int PADDING = 10, SNAP_PADDING = 2;
-
+	
 	private final int x, y;
-
+	
 	ScreenGlue(int x, int y) {
 		this.x = x;
 		this.y = y;
 	}
-
+	
 	@Override
 	public boolean modifiesX() {
 		return x != 2;
 	}
-
+	
 	@Override
 	public boolean modifiesY() {
 		return y != 2;
 	}
-
+	
 	@Override
 	public boolean isRight() {
 		return x == 0;
 	}
-
+	
 	@Override
 	public boolean isLeft() {
 		return x == 1;
 	}
-
+	
 	@Override
 	public boolean isTop() {
 		return y == 0;
 	}
-
+	
 	@Override
 	public boolean isBottom() {
 		return y == 1;
 	}
-
+	
 	@Override
 	public boolean isCenterX() {
 		return x == 3;
 	}
-
+	
 	@Override
 	public boolean isCenterY() {
 		return y == 3;
 	}
-
+	
 	@Override
 	public void formatX(Widget widget) {
-		int width = GLManager.getScreenWidth();
+		int width = GLUtils.getScreenWidth();
 		switch (x) {
-			case 0:
-				widget.setX(width - widget.getWidth() - SNAP_PADDING);
-				break;
-			case 1:
-				widget.setX(SNAP_PADDING);
-				break;
-			case 3:
-				widget.setX(width / 2 - widget.getWidth() / 2);
-				break;
+		case 0:
+			widget.setX(width - widget.getWidth() - SNAP_PADDING);
+			break;
+		case 1:
+			widget.setX(SNAP_PADDING);
+			break;
+		case 3:
+			widget.setX(width / 2 - widget.getWidth() / 2);
+			break;
 			default:
 				break;
 		}
@@ -92,17 +94,20 @@ public enum ScreenGlue implements Glue {
 
 	@Override
 	public void formatY(Widget widget) {
-		int height = GLManager.getScreenHeight();
+		int height = GLUtils.getScreenHeight();
 		switch (y) {
-			case 0:
+		case 0:
+			if (!getPlayer().getEffects().isEmpty() && x == 0) {
+				widget.setY(getPotionY() + SNAP_PADDING);
+			} else
 				widget.setY(SNAP_PADDING);
-				break;
-			case 1:
-				widget.setY(height - widget.getHeight() - SNAP_PADDING);
-				break;
-			case 3:
-				widget.setY(height / 2 - widget.getHeight() / 2);
-				break;
+			break;
+		case 1:
+			widget.setY(height - widget.getHeight() - SNAP_PADDING);
+			break;
+		case 3:
+			widget.setY(height / 2 - widget.getHeight() / 2);
+			break;
 			default:
 				break;
 		}
@@ -112,7 +117,7 @@ public enum ScreenGlue implements Glue {
 	 * @return the integer associated with the format required for the widget
 	 * */
 	private static int getRequiredX(Widget widget) {
-		int width = GLManager.getScreenWidth(), center = width / 2;
+		int width = GLUtils.getScreenWidth(), center = width / 2;
 		int minX = PADDING, maxX = width - PADDING;
 		if (widget.getX() + widget.getWidth() > maxX) {
 			return 0;
@@ -128,7 +133,7 @@ public enum ScreenGlue implements Glue {
 	 * @return the integer associated with the format required for the widget
 	 * */
 	private static int getRequiredY(Widget widget) {
-		int height = GLManager.getScreenHeight(), center = height / 2;
+		int height = GLUtils.getScreenHeight(), center = height / 2;
 		int minY = PADDING, maxY = height - PADDING;
 		if (widget.getY() < minY) {
 			return 0;
@@ -162,12 +167,12 @@ public enum ScreenGlue implements Glue {
 		}
 		return NONE;
 	}
-
+	
 	/**
 	 * Forces the widget to stay within the screen.
 	 * */
 	public static void keepWithinScreen(Widget widget) {
-		int width = GLManager.getScreenWidth(), height = GLManager.getScreenHeight();
+		int width = GLUtils.getScreenWidth(), height = GLUtils.getScreenHeight();
 		if (widget.getX() < SNAP_PADDING)
 			widget.setX(SNAP_PADDING);
 		if (widget.getY() < SNAP_PADDING)

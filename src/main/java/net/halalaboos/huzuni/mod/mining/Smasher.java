@@ -1,19 +1,16 @@
 package net.halalaboos.huzuni.mod.mining;
 
-import net.halalaboos.huzuni.api.event.EventManager.EventMethod;
-import net.halalaboos.huzuni.api.event.UpdateEvent;
-import net.halalaboos.huzuni.api.event.UpdateEvent.Type;
 import net.halalaboos.huzuni.api.mod.BasicMod;
 import net.halalaboos.huzuni.api.mod.Category;
-import net.halalaboos.huzuni.api.settings.Toggleable;
-import net.halalaboos.huzuni.api.settings.Value;
+import net.halalaboos.huzuni.api.node.impl.Toggleable;
+import net.halalaboos.huzuni.api.node.impl.Value;
 import net.halalaboos.huzuni.api.task.MineTask;
 import net.halalaboos.huzuni.api.util.BlockLocator;
-import net.halalaboos.huzuni.api.util.MathUtils;
-import net.minecraft.block.state.IBlockState;
-import net.minecraft.init.Blocks;
-import net.minecraft.util.EnumFacing;
-import net.minecraft.util.BlockPos;
+import net.halalaboos.mcwrapper.api.event.player.PreMotionUpdateEvent;
+import net.halalaboos.mcwrapper.api.util.enums.Face;
+import net.halalaboos.mcwrapper.api.util.math.Vector3i;
+
+import static net.halalaboos.mcwrapper.api.MCWrapper.getWorld;
 
 /**
  * Breaks all one-hit blocks.
@@ -31,14 +28,13 @@ public class Smasher extends BasicMod {
 	private final BlockLocator blockLocator = new BlockLocator() {
 
 		@Override
-		protected boolean isValidBlock(BlockPos position) {
-			IBlockState blockState = mc.theWorld.getBlockState(position);
-			return blockState.getBlock() != Blocks.air && blockState.getBlock().getPlayerRelativeBlockHardness(mc.thePlayer, mc.theWorld, position) >= 1F && MathUtils.getDistance(position) < mc.playerController.getBlockReachDistance();
+		protected boolean isValidBlock(Vector3i position) {
+			return getWorld().blockExists(position) && getWorld().getRelativeHardness(position) >= 1F;
 		}
 
 		@Override
-		protected EnumFacing getFace(BlockPos position) {
-			return EnumFacing.UP;
+		protected Face getFace(Vector3i position) {
+			return Face.UP;
 		}
 		
 	};
@@ -50,32 +46,24 @@ public class Smasher extends BasicMod {
 		setAuthor("Halalaboos");
 		silent.setEnabled(true);
 		huzuni.lookManager.registerTaskHolder(this);
-	}
-	
-	@Override
-	public void onEnable() {
-		huzuni.eventManager.addListener(this);
-	}
-	
-	@Override
-	public void onDisable() {
-		huzuni.eventManager.removeListener(this);
-		huzuni.lookManager.withdrawTask(mineTask);
-		blockLocator.reset();
+		subscribe(PreMotionUpdateEvent.class, event -> {
+			if (huzuni.lookManager.hasPriority(this)) {
+				mineTask.setReset(silent.isEnabled());
+				mineTask.setMineDelay((int) mineDelay.getValue());
+				if (mineTask.hasBlock())
+					huzuni.lookManager.requestTask(this, mineTask);
+				else {
+					huzuni.lookManager.withdrawTask(mineTask);
+					findBlock();
+				}
+			}
+		});
 	}
 
-	@EventMethod
-	public void onUpdate(UpdateEvent event) {
-		if (huzuni.lookManager.hasPriority(this) && event.type == Type.PRE) {
-			mineTask.setReset(silent.isEnabled());
-			mineTask.setMineDelay((int) mineDelay.getValue());
-			if (mineTask.hasBlock())
-				huzuni.lookManager.requestTask(this, mineTask);
-			else {
-				huzuni.lookManager.withdrawTask(mineTask);
-				findBlock();
-			}
-		}
+	@Override
+	public void onDisable() {
+		huzuni.lookManager.withdrawTask(mineTask);
+		blockLocator.reset();
 	}
 
 	/**

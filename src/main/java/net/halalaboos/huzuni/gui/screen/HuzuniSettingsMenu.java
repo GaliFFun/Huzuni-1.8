@@ -1,15 +1,16 @@
 package net.halalaboos.huzuni.gui.screen;
 
 import net.halalaboos.huzuni.api.gui.WidgetManager;
-import net.halalaboos.huzuni.api.util.render.GLManager;
 import net.halalaboos.huzuni.gui.SettingsMenu;
-import net.minecraft.client.renderer.GlStateManager;
+import net.halalaboos.mcwrapper.api.client.gui.screen.Screen;
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
 
 import java.io.IOException;
 
-public class HuzuniSettingsMenu extends HuzuniScreen {
+import static net.halalaboos.mcwrapper.api.MCWrapper.getGLStateManager;
+
+public class HuzuniSettingsMenu extends Screen {
 
 	private final WidgetManager menuManager;
 	
@@ -30,19 +31,18 @@ public class HuzuniSettingsMenu extends HuzuniScreen {
 			menuManager.renderTooltip(mouseX, mouseY);
 		}
 		settingsMenu.renderMenu(width, height, 30, 1);
-		GLManager.update();
-		GlStateManager.disableBlend();
+		getGLStateManager().disableBlend();
 	}
 	
 	@Override
-	protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
+	public void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
 		settingsMenu.mouseClicked(mouseX, mouseY, mouseButton);
 		if (!settingsMenu.isExpanded())
 			menuManager.mouseClicked(mouseX, mouseY, mouseButton);
 	}
 
 	@Override
-	protected void keyTyped(char typedChar, int keyCode) throws IOException {
+	public void keyTyped(char typedChar, int keyCode) throws IOException {
 		super.keyTyped(typedChar, keyCode);
 		if (keyCode != Keyboard.KEY_ESCAPE)
 			settingsMenu.keyTyped(keyCode, typedChar);

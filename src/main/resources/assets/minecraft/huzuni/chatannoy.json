@@ -1,0 +1,40 @@
+[
+  {
+    "category": "dig",
+    "messages": [
+      "I have done it! I mined $BLOCK!",
+      "Wow! I can't believe I just mined some $BLOCK!!",
+      "Guess who just mined some fresh $BLOCK?",
+      "Another day, another $BLOCK dug.",
+      "Knock knock. Who's there? $BLOCK. $BLOCK who? The $BLOCK that I just mined!",
+      "I just broke some $BLOCK, isn't that cool?",
+      "I didn't just mine $BLOCK."
+    ]
+  },
+  {
+    "category": "time",
+    "messages": [
+      "The time is currently $TIME!",
+      "$PLAYER doesn't know that it's currently $TIME!",
+      "Don't worry, $PLAYER, the time is $TIME.",
+      "According to $PLAYER it is currently $TIME.",
+      "Everybody, EVERYBODY CALM DOWN! THE TIME IS $TIME.",
+      "Fun fact: it's $TIME.",
+      "If someone asked the time, it's $TIME.",
+      "Beep boop it's $TIME my man",
+      "Woo-wee! Time flies, it's already $TIME.",
+      "$PLAYER, chill out it's only $TIME."
+    ]
+  },
+  {
+    "category": "pickup",
+    "messages": [
+      "I have done it! I picked up some $ITEM!",
+      "Wow, I just picked up some more $ITEM!!",
+      "Guess who just picked up some fresh $ITEM?",
+      "I have picked up $ITEM.",
+      "I just picked up $ITEM!",
+      "$PLAYER, I have $ITEM now!  Cool, huh?"
+    ]
+  }
+]

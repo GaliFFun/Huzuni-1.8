@@ -2,16 +2,20 @@ package net.halalaboos.huzuni;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import net.halalaboos.huzuni.api.settings.*;
+import net.halalaboos.huzuni.api.node.JsonFileHandler;
+import net.halalaboos.huzuni.api.node.Node;
+import net.halalaboos.huzuni.api.node.impl.ColorNode;
+import net.halalaboos.huzuni.api.node.impl.Toggleable;
+import net.halalaboos.huzuni.api.node.impl.Value;
 import net.halalaboos.huzuni.settings.KeyOpenMenu;
+import net.halalaboos.huzuni.settings.KeyOpenTest;
 import net.halalaboos.huzuni.settings.Team;
-import net.minecraft.client.Minecraft;
-import net.minecraft.util.Session;
 
 import java.awt.*;
 import java.io.IOException;
 import java.util.List;
-import java.util.UUID;
+
+import static net.halalaboos.mcwrapper.api.MCWrapper.getMinecraft;
 
 /**
  * Holds the global settings used within the mods. <br/>
@@ -20,28 +24,26 @@ import java.util.UUID;
 public final class HuzuniSettings extends JsonFileHandler {
 
 	public final Node lineSettings = new Node("Line settings", "Adjust the settings applied to line rendering.");
-
 	public final Value lineSize = new Value("Line Size", "", 0.2F, 1F, 10F, "Thickness of lines rendered in 3D");
-
 	public final Toggleable lineSmooth = new Toggleable("Line Smooth", "Renders 3D lines smoothly");
-
 	public final Toggleable infiniteLines = new Toggleable("Infinite Lines", "Render lines through the near plane");
 
 	public final Node menuSettings = new Node("Menu settings", "Adjust the settings applied to the menu.");
-
 	public final Toggleable customChat = new Toggleable("Custom Chat Font", "Renders the chat with a custom font");
-
 	public final Toggleable customFont = new Toggleable("Custom Menu Font", "Renders the menus with a custom font");
-
 	public final Toggleable firstUse = new Toggleable("First Use", "Determines if this is the first use of the client!");
-
 	public final ColorNode menuColor = new ColorNode("Menu Color", new Color(0, 167, 255, 255), "Primary color rendered over the gui");
+
+	// N O S T A L G I A //
+	public final Node minecraftSettings = new Node("Minecraft settings", "Adjust the settings applied to Minecraft itself.");
+	public final Toggleable monochromeLighting = new Toggleable("Monochrome Lighting", "Makes Minecraft's light colors like the older (beta) versions.");
 
 	public final Team team = new Team();
 
 	public final KeyOpenMenu keyOpenMenu = new KeyOpenMenu();
+	public final KeyOpenTest keyOpenTest = new KeyOpenTest();
 
-	private Session lastSession = null;
+	private String[] lastSession = null;
 
 	private String newestVersion = "";
 
@@ -54,10 +56,12 @@ public final class HuzuniSettings extends JsonFileHandler {
 		JsonObject object = new JsonObject();
 		lineSettings.save(object);
 		menuSettings.save(object);
+		minecraftSettings.save(object);
 		team.save(object);
 		huzuni.lookManager.save(object);
 		huzuni.hotbarManager.save(object);
 		keyOpenMenu.save(object);
+		keyOpenTest.save(object);
 		firstUse.save(object);
 		saveSession(objects, lastSession);
 		objects.add(object);
@@ -68,8 +72,10 @@ public final class HuzuniSettings extends JsonFileHandler {
 		if (!loadSession(object)) {
 			lineSettings.load(object);
 			menuSettings.load(object);
+			minecraftSettings.load(object);
 			team.load(object);
 			keyOpenMenu.load(object);
+			keyOpenTest.load(object);
 			firstUse.load(object);
 			huzuni.lookManager.load(object);
 			huzuni.hotbarManager.load(object);
@@ -81,11 +87,12 @@ public final class HuzuniSettings extends JsonFileHandler {
 		infiniteLines.setEnabled(true);
 		customFont.setEnabled(true);
 		firstUse.setEnabled(true);
+		monochromeLighting.setEnabled(false);
 		lineSettings.addChildren(lineSize, lineSmooth, infiniteLines);
 		menuSettings.addChildren(customChat, customFont, huzuni.guiManager.getThemes(), menuColor);
+		minecraftSettings.addChildren(monochromeLighting);
 		try {
-			UUID.fromString(Minecraft.getMinecraft().getSession().getPlayerID());
-			lastSession = Minecraft.getMinecraft().getSession();
+			lastSession = getMinecraft().session().getParams();
 		} catch (Exception e) {
 		}
 	}
@@ -93,13 +100,13 @@ public final class HuzuniSettings extends JsonFileHandler {
 	/**
 	 * Saves session information into a JsonObject
 	 * */
-	private void saveSession(List<JsonObject> objects, Session session) {
+	private void saveSession(List<JsonObject> objects, String[] session) {
 		JsonObject object = new JsonObject();
 		if (session != null) {
-			object.addProperty("username", session.getUsername());
-			object.addProperty("uuid", session.getPlayerID());
-			object.addProperty("token", session.getToken());
-			object.addProperty("sessionId", session.getSessionID());
+			object.addProperty("username", session[0]);
+			object.addProperty("uuid", session[1]);
+			object.addProperty("token", session[2]);
+			object.addProperty("sessionId", session[3]);
 			objects.add(object);
 		}
 	}
@@ -114,7 +121,7 @@ public final class HuzuniSettings extends JsonFileHandler {
 			String uuid = object.get("uuid").getAsString();
 			String token = object.get("token").getAsString();
 			String sessionId = object.get("sessionId").getAsString();
-			lastSession = new Session(name, uuid, token, sessionId);
+			lastSession = new String[] { name, uuid, token, sessionId };
 			return true;
 		}
 		return false;
@@ -124,12 +131,8 @@ public final class HuzuniSettings extends JsonFileHandler {
 		return menuColor.getColor();
 	}
 
-	public Session getLastSession() {
+	public String[] getLastSession() {
 		return lastSession;
-	}
-
-	public void setLastSession(Session lastSession) {
-		this.lastSession = lastSession;
 	}
 
 	public String getNewestVersion() {

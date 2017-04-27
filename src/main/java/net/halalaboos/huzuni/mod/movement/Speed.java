@@ -1,166 +1,161 @@
 package net.halalaboos.huzuni.mod.movement;
 
-import net.halalaboos.huzuni.api.event.EventManager.EventMethod;
-import net.halalaboos.huzuni.api.event.PlayerMoveEvent;
-import net.halalaboos.huzuni.api.event.UpdateEvent;
-import net.halalaboos.huzuni.api.event.UpdateEvent.Type;
 import net.halalaboos.huzuni.api.mod.BasicMod;
 import net.halalaboos.huzuni.api.mod.Category;
-import net.halalaboos.huzuni.api.settings.Mode;
-import net.halalaboos.huzuni.api.settings.Nameable;
-import net.halalaboos.huzuni.api.settings.Toggleable;
-import net.halalaboos.huzuni.api.settings.Value;
-import net.minecraft.block.BlockStairs;
-import net.minecraft.block.state.IBlockState;
-import net.minecraft.client.Minecraft;
-import net.minecraft.util.EnumFacing;
-import net.minecraft.util.BlockPos;
+import net.halalaboos.huzuni.api.node.Mode;
+import net.halalaboos.huzuni.api.node.attribute.Nameable;
+import net.halalaboos.huzuni.api.node.impl.Toggleable;
+import net.halalaboos.huzuni.api.node.impl.Value;
+import net.halalaboos.mcwrapper.api.entity.Entity;
+import net.halalaboos.mcwrapper.api.event.player.MoveEvent;
+import net.halalaboos.mcwrapper.api.event.player.PreMotionUpdateEvent;
 import org.lwjgl.input.Keyboard;
 
+import static net.halalaboos.mcwrapper.api.MCWrapper.getInput;
+import static net.halalaboos.mcwrapper.api.MCWrapper.getPlayer;
+
 /**
- * Allows the player to move at a faster rate.
- * */
+ * Used to allow the player to modify their movement speed, as well as automatically sprint, bunnyhop, etc.
+ *
+ * This mod has a couple different modes, which the player can cycle through.  If they want to just have faster movement,
+ * the can use the {@link SpeedMode#NONE} mode, which will just change their movement speed and not sprint.  Otherwise,
+ * they can use the {@link SpeedMode#SPRINT} mode.
+ *
+ * @author Halalaboos
+ */
 public class Speed extends BasicMod {
-		
-	public final Mode<SpeedMode> mode = new Mode<>("Mode", "Speed mode", new NoneMode(), new SprintMode());
 
-    public final Toggleable bunnyHop = new Toggleable("Bunny hop", "Hops like a bunny");
+	/**
+	 * The different modes the player can chose from.  This will also be displayed in-game, like "Speed (None)"
+	 *
+	 * @see SpeedMode
+	 */
+	private final Mode<SpeedMode> mode = new Mode<>("Mode", "Speed mode", SpeedMode.NONE, SpeedMode.SPRINT);
 
-    public final Toggleable stairs = new Toggleable("Stairs", "Automagically jumps up stairs");
+	/**
+	 * Will automatically jump as the player moves.  This isn't really anything special like some other clients, just
+	 * basic jumping.
+	 */
+    private final Toggleable bunnyHop = new Toggleable("Bunny hop", "Hops like a bunny");
 
-    public final Value groundSpeed = new Value("Ground speed", 1F, 1F, 10F, "Movement speed on the ground");
+	/**
+	 * Will automatically jump as the player climbs stairs, resulting in faster movement upwards.
+	 */
+	private final Toggleable stairs = new Toggleable("Stairs", "Automagically jumps up stairs");
 
-    public final Value airSpeed = new Value("Air speed", 1F, 1F, 10F, "Movement speed in air");
+	/**
+	 * The speed multiplier for on-ground movement.  In most anti-cheats, it's best to just leave this at 1.
+	 */
+    private final Value groundSpeed = new Value("Ground speed", 1F, 1F, 10F, "Movement speed on the ground");
+
+	/**
+	 * The speed multiplier for when the player is in the air.
+	 */
+	private final Value airSpeed = new Value("Air speed", 1F, 1F, 10F, "Movement speed in air");
 	
 	public Speed() {
 		super("Speed", "Adjust player movement speed", Keyboard.KEY_M);
 		setAuthor("Halalaboos");
 		setCategory(Category.MOVEMENT);
 		addChildren(bunnyHop, stairs, mode, groundSpeed, airSpeed);
+		//Set the default mode to the Sprint mode
 		mode.setSelectedItem(1);
-	}
-	
-	@Override
-	public void onEnable() {
-		huzuni.eventManager.addListener(this);
+		//Used to dispatch the modes as well as jump for the stairs/bunny-hop modes.
+		subscribe(PreMotionUpdateEvent.class, event -> {
+			//Dispatch the update event for the current selected mode.
+			mode.getSelectedItem().onUpdate(this, event);
+			//If the player is moving and on ground...
+			if (shouldModifyMovement() && getPlayer().isOnGround()) {
+				//If bunnyhop or stairs (and under stairs) is enabled, jump
+				if ((stairs.isEnabled() && getPlayer().isUnderStairs()) || bunnyHop.isEnabled()) {
+					getPlayer().jump();
+				}
+			}
+		});
+
+		//Used to adjust the ground/air speed
+		subscribe(MoveEvent.class, event -> {
+			//Check if the player is on-ground, if so, we will use the ground speed.  Otherwise, use air speed.
+			float multiplier = getPlayer().isOnGround() ? groundSpeed.getValue() : airSpeed.getValue();
+			event.setMotionX(event.getMotionX() * multiplier);
+			event.setMotionZ(event.getMotionZ() * multiplier);
+		});
 	}
 	
 	@Override
 	public void onDisable() {
-		huzuni.eventManager.removeListener(this);
-		if (mc.thePlayer != null)
-			mc.thePlayer.setSprinting(false);
+		if (hasWorld()) {
+			/*
+			Disable sprinting when the mod is disabled.
+
+			The player will stop sprinting regardless, but this can help if the user wants to stop sprinting right
+			as the mod is disabled.
+			 */
+			getPlayer().setSprinting(false);
+		}
 	}
-	
+
+	/**
+	 * Modifies the render name to display the selected mode.
+	 */
 	@Override
 	public String getDisplayNameForRender() {
 		return settings.getDisplayName() + String.format(" (%s)", mode.getSelectedItem());
 	}
-	
-	@EventMethod
-	public void onUpdate(UpdateEvent event) {
-		if (event.type == Type.PRE) {
-			boolean modifyMovement = shouldModifyMovement();
-			mode.getSelectedItem().onUpdate(this, mc, event);
-			if (modifyMovement && mc.thePlayer.onGround) {
-				if ((stairs.isEnabled() && isUnderStairs()) || bunnyHop.isEnabled()) {
-					mc.thePlayer.jump();
-				}
+
+	/**
+	 * Used to check whether or not the player can sprint in a vanilla context.
+	 *
+	 * For example, without this, we would just have the player always be sprinting.  That means they would be sprinting
+	 * when they weren't moving, or collided against a wall, sneaking, etc.
+	 *
+	 * This helps the player look more 'legit' to other players.
+	 */
+	private boolean shouldModifyMovement() {
+        return getInput().getForward() > 0 && !getPlayer().isSneaking()  &&
+				!getPlayer().isCollided(Entity.CollisionType.HORIZONTAL) && getPlayer().getFood() > 6;
+    }
+
+	/**
+	 * We have a couple different modes the user can choose from that can modify how the mod works.
+	 *
+	 * In most cases, the user will most likely just want to be sprinting, which is why {@link #SPRINT} is the default
+	 * selected mode.
+	 *
+	 * In the case where the user wants to move quickly without having to sprint, they can use the {@link #NONE} mode,
+	 * which will only adjust the movement speed.
+	 */
+	public enum SpeedMode implements Nameable {
+
+		/**
+		 * Only adjusts the moving speed, no need for any update event.
+		 */
+		NONE("None", "An empty speed mode, using only the movement speed modifiers"),
+
+		/**
+		 * Automatically sprints for the player given {@link #shouldModifyMovement()}
+		 */
+		SPRINT("Sprint", "Forces the player to sprint.") {
+			@Override
+			public void onUpdate(Speed speed, PreMotionUpdateEvent event) {
+				getPlayer().setSprinting(speed.shouldModifyMovement());
 			}
-		}
-	}
-	
-	@EventMethod
-	public void onPlayerMove(PlayerMoveEvent event) {
-		event.setMotionX(event.getMotionX() * (mc.thePlayer.onGround ? groundSpeed.getValue() : airSpeed.getValue()));
-		event.setMotionZ(event.getMotionZ() * (mc.thePlayer.onGround ? groundSpeed.getValue() : airSpeed.getValue()));
-        mode.getSelectedItem().onPlayerMove(this, mc, event);
-	}
+		};
 
-	/**
-     * @return True if the player is underneath stairs.
-     * */
-	private boolean isUnderStairs() {
-		EnumFacing face = mc.thePlayer.getHorizontalFacing();
-		IBlockState blockState = mc.theWorld.getBlockState(new BlockPos(mc.thePlayer.posX, mc.thePlayer.posY - 1, mc.thePlayer.posZ));
-		IBlockState nextBlockState = mc.theWorld.getBlockState(new BlockPos(mc.thePlayer.posX + face.getDirectionVec().getX(), mc.thePlayer.posY, mc.thePlayer.posZ + face.getDirectionVec().getZ()));
-
-		if (BlockStairs.isBlockStairs(blockState.getBlock()) && BlockStairs.isBlockStairs(nextBlockState.getBlock())) {
-			EnumFacing blockFace = blockState.getValue(BlockStairs.FACING);
-			EnumFacing nextBlockFace = blockState.getValue(BlockStairs.FACING);
-			return face.equals(blockFace) && face.equals(nextBlockFace);
-		} else
-			return false;
-	}
-
-	/**
-     * @return True if the player's given circumstances are ideal for modifying movement.
-     * */
-	public boolean shouldModifyMovement() {
-        return !mc.thePlayer.capabilities.isFlying && mc.thePlayer.moveForward > 0 && !mc.thePlayer.isSneaking() && !mc.thePlayer.isCollidedHorizontally && mc.thePlayer.getFoodStats().getFoodLevel() > 6 && !mc.thePlayer.isInWater() && !mc.thePlayer.isInLava();
-    }
-
-    /**
-     * The sprint mode forces the player to sprint when ideal.
-     * */
-    public static class SprintMode extends SpeedMode {
-
-        public SprintMode() {
-            super("Sprint", "Forces the player to sprint.");
-        }
-
-        @Override
-        public void onUpdate(Speed speed, Minecraft mc, UpdateEvent event) {
-            mc.thePlayer.setSprinting(speed.shouldModifyMovement());
-        }
-
-        @Override
-        public void onPlayerMove(Speed speed, Minecraft mc, PlayerMoveEvent event) {
-
-        }
-    }
-
-    /**
-     * The default speed mode used, will apply no effects.
-     * */
-    public static class NoneMode extends SpeedMode {
-
-        public NoneMode() {
-            super("None", "An empty speed mode, using only the movement speed modifiers.");
-        }
-
-        @Override
-        public void onUpdate(Speed speed, Minecraft mc, UpdateEvent event) {
-
-        }
-
-        @Override
-        public void onPlayerMove(Speed speed, Minecraft mc, PlayerMoveEvent event) {
-
-        }
-    }
-
-    /**
-     * Used within the mode of the speed mod. Allows for custom speed types.
-     * */
-	public static abstract class SpeedMode implements Nameable {
-
+		/**
+		 * The name used for the {@link Mode} that this will be linked to.
+		 */
         private final String name, description;
 
-        public SpeedMode(String name, String description) {
+        SpeedMode(String name, String description) {
             this.name = name;
             this.description = description;
         }
 
-        /**
-         * Invoked before and after sending motion updates.
-         * */
-        public abstract void onUpdate(Speed speed, Minecraft mc, UpdateEvent event);
-
-        /**
-         * Invoked when the player moves.
-         * */
-        public abstract void onPlayerMove(Speed speed, Minecraft mc, PlayerMoveEvent event);
+		/**
+		 * Invoked before sending motion updates to the server, serves as a simple 'tick' listener.
+		 */
+		public void onUpdate(Speed speed, PreMotionUpdateEvent event) {}
 
         @Override
         public String getName() {

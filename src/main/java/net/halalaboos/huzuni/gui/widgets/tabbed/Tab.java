@@ -2,9 +2,9 @@ package net.halalaboos.huzuni.gui.widgets.tabbed;
 
 import net.halalaboos.huzuni.api.gui.Theme;
 import net.halalaboos.huzuni.api.gui.widget.Glue;
-import net.halalaboos.huzuni.api.settings.Nameable;
+import net.halalaboos.huzuni.api.node.attribute.Nameable;
 import net.halalaboos.huzuni.api.util.IncrementalPosition;
-import net.halalaboos.huzuni.api.util.render.GLManager;
+import net.halalaboos.huzuni.api.util.gl.GLUtils;
 import org.lwjgl.opengl.GL11;
 
 import java.util.ArrayList;
@@ -55,7 +55,7 @@ public class Tab implements Nameable {
             int moveOpenedWidth = (int) (tabbedMenuWidget.animations.isEnabled() ? openedWidth.getX() : openedWidth.getFinalX());
             theme.drawBorder(tabbedMenuWidget.getGlue().isRight() ? openedX + moveOpenedX : openedX, openedY, tabbedMenuWidget.getGlue().isRight() ? -moveOpenedWidth : moveOpenedWidth, internalHeight, false);
             if (!openedPosition.hasFinished()) {
-                GLManager.glScissor(tabbedMenuWidget.getGlue().isRight() ? openedX + moveOpenedWidth : openedX, openedY, tabbedMenuWidget.getGlue().isRight() ? openedX : openedX + moveOpenedWidth, openedY + internalHeight);
+                GLUtils.glScissor(tabbedMenuWidget.getGlue().isRight() ? openedX + moveOpenedWidth : openedX, openedY, tabbedMenuWidget.getGlue().isRight() ? openedX : openedX + moveOpenedWidth, openedY + internalHeight);
                 GL11.glEnable(GL11.GL_SCISSOR_TEST);
             }
 

@@ -1,49 +1,36 @@
 package net.halalaboos.huzuni.api.task;
 
-import net.halalaboos.huzuni.api.mod.Mod;
+import net.halalaboos.huzuni.api.node.attribute.Nameable;
 import net.halalaboos.huzuni.api.util.MinecraftUtils;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.util.EnumFacing;
-import net.minecraft.util.BlockPos;
+import net.halalaboos.mcwrapper.api.util.enums.Face;
+import net.halalaboos.mcwrapper.api.util.math.Vector3i;
+
+import static net.halalaboos.mcwrapper.api.MCWrapper.getPlayer;
 
 /**
  * Task which allows the players rotations to be faked server-side.
  * */
-public class LookTask implements Task {
-		
-	protected final Mod mod;
-	
+public class LookTask extends BasicTask {
+
 	protected float yaw, pitch, oldYaw, oldPitch;
 
-	protected boolean reset = true, running = false;
-	
-	public LookTask(Mod mod) {
-		this(mod, 0F, 0F);
+	protected boolean reset = true;
+
+	public LookTask(Nameable handler) {
+		this(handler, 0F, 0F);
 	}
 	
-	public LookTask(Mod mod, EntityLivingBase entity) {
-		this.mod = mod;
-		float[] rotations = MinecraftUtils.getRotationsNeededLenient(entity);
-		this.yaw = rotations[0];
-		this.pitch = rotations[1];
-	}
-	
-	public LookTask(Mod mod, BlockPos position) {
-		this.mod = mod;
-		float[] rotations = MinecraftUtils.getRotationsNeeded(position.getX(), position.getY(), position.getZ());
-		this.yaw = rotations[0];
-		this.pitch = rotations[1];
-	}
-	
-	public LookTask(Mod mod, double x, double y, double z) {
-		this.mod = mod;
+	public LookTask(Nameable handler, double x, double y, double z) {
+		super(handler);
+		addDependency("look");
 		float[] rotations = MinecraftUtils.getRotationsNeeded(x, y, z);
 		this.yaw = rotations[0];
 		this.pitch = rotations[1];
 	}
 	
-	public LookTask(Mod mod, float yaw, float pitch) {
-		this.mod = mod;
+	public LookTask(Nameable handler, float yaw, float pitch) {
+		super(handler);
+		addDependency("look");
 		this.yaw = yaw;
 		this.pitch = pitch;
 	}
@@ -62,10 +49,10 @@ public class LookTask implements Task {
 	 * Sets the player rotations and saves the previous player rotations.
 	 * */
 	protected void setRotation() {
-		oldYaw = mc.thePlayer.rotationYaw;
-		oldPitch = mc.thePlayer.rotationPitch;
-		mc.thePlayer.rotationYaw = yaw;
-		mc.thePlayer.rotationPitch = pitch;
+		oldYaw = getPlayer().getYaw();
+		oldPitch = getPlayer().getPitch();
+		getPlayer().setPitch(pitch);
+		getPlayer().setYaw(yaw);
 	}
 
 	/**
@@ -73,8 +60,8 @@ public class LookTask implements Task {
 	 * */
 	protected void resetRotation() {
 		if (reset) {
-			mc.thePlayer.rotationYaw = oldYaw;
-			mc.thePlayer.rotationPitch = oldPitch;
+			getPlayer().setPitch(oldPitch);
+			getPlayer().setYaw(oldYaw);
 		}
 	}
 	
@@ -103,28 +90,10 @@ public class LookTask implements Task {
 	}
 
 	/**
-	 * Sets the rotations to view the given entity (with leinancy).
-	 * */
-	public void setRotations(EntityLivingBase entity) {
-		float[] rotations = MinecraftUtils.getRotationsNeededLenient(entity);
-		this.yaw = rotations[0];
-		this.pitch = rotations[1];
-	}
-
-	/**
 	 * Sets the rotations to view the given block position at the face given.
 	 * */
-	public void setRotations(BlockPos position, EnumFacing face) {
-		float[] rotations = MinecraftUtils.getRotationsNeeded(position.getX() + 0.5F + (float) (face.getDirectionVec().getX()) / 2F, position.getY() + 0.5F + (float) (face.getDirectionVec().getY()) / 2F, position.getZ() + 0.5F + (float) (face.getDirectionVec().getZ()) / 2F);
-		this.yaw = rotations[0];
-		this.pitch = rotations[1];
-	}
-
-	/**
-	 * Sets the rotations to view the given x, y, z positions.
-	 * */
-	public void setRotations(double x, double y, double z) {
-		float[] rotations = MinecraftUtils.getRotationsNeeded(x, y, z);
+	public void setRotations(Vector3i position, Face face) {
+		float[] rotations = MinecraftUtils.getRotationsNeeded(position.getX() + 0.5F + (float) (face.getDirectionVector().getX()) / 2F, position.getY() + 0.5F + (float) (face.getDirectionVector().getY()) / 2F, position.getZ() + 0.5F + (float) (face.getDirectionVector().getZ()) / 2F);
 		this.yaw = rotations[0];
 		this.pitch = rotations[1];
 	}
@@ -135,22 +104,6 @@ public class LookTask implements Task {
 	}
 
 	@Override
-	public boolean isRunning() {
-		return running;
-	}
-
-	@Override
-	public void setRunning(boolean running) {
-		this.running = running;
-	}
-	
-	@Override
-	public Mod getMod() {
-		return mod;
-	}
-
-	@Override
 	public void onTaskCancelled() {
 	}
-	
 }

@@ -1,7 +1,7 @@
 package net.halalaboos.huzuni.api.gui.components.tree;
 
 import net.halalaboos.huzuni.api.gui.Theme;
-import net.halalaboos.huzuni.api.settings.Node;
+import net.halalaboos.huzuni.api.node.Node;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -42,7 +42,7 @@ public abstract class NodeTreeComponent <N extends Node> {
 	protected void loadChildren() {
 		children.clear();
 		if (this.node instanceof Node) {
-			List<Node> children = ((Node) this.node).getChildren();
+			List<Node> children = this.node.getChildren();
 			for (Node child : children) {
 				NodeTreeComponent<?> component = TreeComponentFactory.getComponent(child);
 				if (component != null)

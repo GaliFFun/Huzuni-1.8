@@ -1,14 +1,12 @@
 package net.halalaboos.huzuni.api.task;
 
-import net.halalaboos.huzuni.api.mod.Mod;
-import net.minecraft.client.Minecraft;
+import net.halalaboos.huzuni.api.node.attribute.Dependent;
+import net.halalaboos.huzuni.api.node.attribute.Nameable;
 
 /**
  * Tasks which occur only when requested to a task manager and only if the task holder who sends the request has the highest priority.
  * */
-public interface Task {
-
-	Minecraft mc = Minecraft.getMinecraft();
+public interface Task extends Dependent {
 
     /**
      * Invoked when the task has been cancelled (or replaced by another task)
@@ -25,9 +23,12 @@ public interface Task {
      * */
 	void onPostUpdate();
 
+	/**
+	 * @return The handler for this task.
+	 * */
+	Nameable getHandler();
+
 	boolean isRunning();
-	
+
 	void setRunning(boolean running);
-	
-	Mod getMod();
 }

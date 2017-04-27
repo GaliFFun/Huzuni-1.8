@@ -3,11 +3,13 @@ package net.halalaboos.huzuni.gui.widgets;
 import net.halalaboos.huzuni.WaypointManager.Waypoint;
 import net.halalaboos.huzuni.api.gui.WidgetManager;
 import net.halalaboos.huzuni.api.gui.widget.Widget;
-import net.halalaboos.huzuni.api.settings.Toggleable;
-import net.halalaboos.huzuni.api.settings.Value;
-import net.halalaboos.huzuni.api.util.render.GLManager;
-import net.halalaboos.huzuni.api.util.render.Texture;
-import net.halalaboos.mcwrapper.api.util.MathUtils;
+import net.halalaboos.huzuni.api.node.impl.Toggleable;
+import net.halalaboos.huzuni.api.node.impl.Value;
+import net.halalaboos.huzuni.api.util.gl.GLUtils;
+import net.halalaboos.huzuni.api.util.gl.Texture;
+import net.halalaboos.mcwrapper.api.MCWrapper;
+import net.halalaboos.mcwrapper.api.client.ClientPlayer;
+import net.halalaboos.mcwrapper.api.util.math.MathUtils;
 import org.lwjgl.opengl.GL11;
 
 /**
@@ -32,14 +34,16 @@ public class CompassWidget extends Widget {
 
 	@Override
 	public void renderMenu(int x, int y, int width, int height) {
+		ClientPlayer player = MCWrapper.getPlayer();
+		float yaw = player.getRotation().yaw;
 		this.setWidth((int) this.width.getValue() * 2);
 		this.setHeight(11);
 		theme.drawBorder(x, y, width, height, false);
 		theme.drawBackgroundRect(x, y, width, height, false);
-		int rotation = (int) MathUtils.wrapDegrees(mc.thePlayer.rotationYaw);
+		int rotation = (int) MathUtils.wrapDegrees(yaw);
 		
 		int offsetX = (int) this.width.getValue();
-		GLManager.glScissor(x + 1, y + 1, x + width - 1, y + height - 1);
+		GLUtils.glScissor(x + 1, y + 1, x + width - 1, y + height - 1);
 		GL11.glEnable(GL11.GL_SCISSOR_TEST);
 		theme.drawString("N", (x - rotation + offsetX) + 180 - theme.getStringWidth("N") / 2, y, 0xFFFFFF);
 		theme.drawString("E", (x - rotation + offsetX) - 90 - theme.getStringWidth("E") / 2, y, 0xFFFFFF);
@@ -57,8 +61,8 @@ public class CompassWidget extends Widget {
 		}
 		if (waypoints.isEnabled()) {
 			for (Waypoint waypoint : huzuni.waypointManager.getLocalWaypoints()) {
-				float waypointYaw = MathUtils.wrapDegrees((float) (Math.atan2(waypoint.getPosition().getZ() - mc.thePlayer.posZ, waypoint.getPosition().getX() - mc.thePlayer.posX) * 180.0D / Math.PI) - 90.0F);
-				GLManager.glColor(waypoint.getColor());
+				float waypointYaw = MathUtils.wrapDegrees((float) (Math.atan2(waypoint.getPosition().getZ() - player.getZ(), waypoint.getPosition().getX() - player.getX()) * 180.0D / Math.PI) - 90.0F);
+				GLUtils.glColor(waypoint.getColor());
 				location.render(x - rotation + offsetX + waypointYaw - 5, y, 10, 10);
 			}
 		}

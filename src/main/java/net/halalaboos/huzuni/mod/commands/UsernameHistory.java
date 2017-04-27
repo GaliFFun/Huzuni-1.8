@@ -3,9 +3,9 @@ package net.halalaboos.huzuni.mod.commands;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.mojang.authlib.GameProfile;
-import net.halalaboos.huzuni.api.mod.BasicCommand;
+import net.halalaboos.huzuni.api.mod.command.impl.BasicCommand;
 import net.halalaboos.huzuni.api.util.FileUtils;
-import net.halalaboos.mcwrapper.api.util.TextColor;
+import net.halalaboos.mcwrapper.api.util.enums.TextColor;
 
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -26,27 +26,24 @@ public final class UsernameHistory extends BasicCommand {
 	@Override
 	protected void runCommand(String input, String[] args) {
 		final String name = args[0];
-		new Thread() {
-			@Override
-			public void run() {
-				try {
-					String uuid = grabUUID(name);
-					String names = FileUtils.readURL(new URL("https://api.mojang.com/user/profiles/" + uuid + "/names"));
-					if (names.isEmpty()) {
-						huzuni.addChatMessage(name + " has had no username changes.");
-					} else {
-						Collection<GameProfile> profiles = new Gson().fromJson(names, new TypeToken<Collection<GameProfile>>(){}.getType());
-						String output = "";
-						for (GameProfile profile : profiles)
-							output += "\"" + profile.getName() + "\", ";
-						huzuni.addChatMessage(TextColor.GOLD + name + TextColor.RESET + " has had the usernames: " + output.substring(0, output.length() - 2) + ".");
-					}
-				} catch (Exception e) {
-					huzuni.addChatMessage("Failed to look up user.");
-					e.printStackTrace();
+		new Thread(() -> {
+			try {
+				String uuid = grabUUID(name);
+				String names = FileUtils.readURL(new URL("https://api.mojang.com/user/profiles/" + uuid + "/names"));
+				if (names.isEmpty()) {
+					huzuni.addChatMessage(name + " has had no username changes.");
+				} else {
+					Collection<GameProfile> profiles = new Gson().fromJson(names, new TypeToken<Collection<GameProfile>>(){}.getType());
+					String output = "";
+					for (GameProfile profile : profiles)
+						output += "\"" + profile.getName() + "\", ";
+					huzuni.addChatMessage(TextColor.GOLD + name + TextColor.RESET + " has had the usernames: " + output.substring(0, output.length() - 2) + ".");
 				}
+			} catch (Exception e) {
+				huzuni.addChatMessage("Failed to look up user.");
+				e.printStackTrace();
 			}
-		}.start();
+		}).start();
 	}
 
 	private String grabUUID(String name) {

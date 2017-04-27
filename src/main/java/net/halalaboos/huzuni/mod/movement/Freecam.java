@@ -1,77 +1,67 @@
 package net.halalaboos.huzuni.mod.movement;
 
-import com.mojang.authlib.GameProfile;
-import net.halalaboos.huzuni.api.event.EventManager.EventMethod;
-import net.halalaboos.huzuni.api.event.PacketEvent;
-import net.halalaboos.huzuni.api.event.PlayerMoveEvent;
 import net.halalaboos.huzuni.api.mod.BasicMod;
 import net.halalaboos.huzuni.api.mod.Category;
-import net.halalaboos.huzuni.api.settings.Value;
-import net.minecraft.client.entity.EntityOtherPlayerMP;
+import net.halalaboos.huzuni.api.node.impl.Value;
+import net.halalaboos.mcwrapper.api.entity.living.player.Player;
+import net.halalaboos.mcwrapper.api.event.network.PacketSendEvent;
+import net.halalaboos.mcwrapper.api.event.player.MoveEvent;
+import net.halalaboos.mcwrapper.api.network.packet.client.PlayerPacket;
 import org.lwjgl.input.Keyboard;
+
+import static net.halalaboos.mcwrapper.api.MCWrapper.getPlayer;
+import static net.halalaboos.mcwrapper.api.MCWrapper.getWorld;
 
 /**
  * Allows the player to fly freely from their body and explore the world.
- * */
+ */
 public class Freecam extends BasicMod {
 	
 	public static final Freecam INSTANCE = new Freecam();
 	
-	public final Value speed = new Value("Speed", "", 0.1F, 1F, 10F, "movement speed");
+	public final Value speed = new Value("Speed", 0.1F, 1F, 10F, "movement speed");
 
 	private boolean oldFlying = false;
-    private EntityOtherPlayerMP fakePlayer;
-	
+    private Player fakePlayer;
+
 	private Freecam() {
 		super("Freecam", "Allows an individual to fly FROM THEIR BODY?", Keyboard.KEY_U);
 		this.setCategory(Category.MOVEMENT);
 		setAuthor("Halalaboos");
 		addChildren(speed);
+		subscribe(MoveEvent.class, this::onPlayerMove);
+		subscribe(PacketSendEvent.class, this::onPacketSend);
+	}
+
+	private void onPlayerMove(MoveEvent event) {
+		getPlayer().setSprinting(false);
+		Flight.INSTANCE.setEnabled(true);
+	}
+
+	private void onPacketSend(PacketSendEvent event) {
+		event.setCancelled(event.getPacket() instanceof PlayerPacket);
 	}
 	
 	@Override
 	public void toggle() {
 		super.toggle();
-		if (mc.thePlayer != null && mc.theWorld != null) {
+		if (getPlayer() != null && getWorld() != null) {
 	        if (isEnabled()) {
 	        	oldFlying = Flight.INSTANCE.isEnabled();
-	            fakePlayer = new EntityOtherPlayerMP(mc.theWorld, new GameProfile(mc.thePlayer.getUniqueID(), mc.thePlayer.getName()));
-	            fakePlayer.copyLocationAndAnglesFrom(mc.thePlayer);
-				fakePlayer.inventory = mc.thePlayer.inventory;
-	            fakePlayer.setPositionAndRotation(mc.thePlayer.posX, mc.thePlayer.posY, mc.thePlayer.posZ, mc.thePlayer.rotationYaw, mc.thePlayer.rotationPitch);
-	            fakePlayer.rotationYawHead = mc.thePlayer.rotationYawHead;
-				mc.theWorld.addEntityToWorld(-69, fakePlayer);
+	            fakePlayer = getWorld().spawnCopiedPlayer(-69, getPlayer());
 				Flight.INSTANCE.setEnabled(true);
 			 } else {
-	        	if (fakePlayer != null && mc.thePlayer != null) {
-	        		mc.thePlayer.setPositionAndRotation(fakePlayer.posX, fakePlayer.posY, fakePlayer.posZ, fakePlayer.rotationYaw, fakePlayer.rotationPitch);
-	            	mc.theWorld.removeEntityFromWorld(-69);
+	        	if (fakePlayer != null && getPlayer() != null) {
+	        		getPlayer().setLocation(fakePlayer.getLocation());
+	        		getPlayer().setRotation(fakePlayer.getRotation());
+	        		getWorld().removeEntity(-69);
 					Flight.INSTANCE.setEnabled(oldFlying);
 	        	}
-	        	 if (mc.thePlayer != null)
+	        	 if (getPlayer() != null)
 					 Flight.INSTANCE.setEnabled(oldFlying);
 	        }
+			mc.loadRenderers(); //Fixes culling updates
+			getPlayer().setNoClip(enabled); //Enable noclip
 		}
     }
-	
-	@Override
-	public void onEnable() {
-		huzuni.eventManager.addListener(this);
-	}
-	
-	@Override
-	public void onDisable() {
-		huzuni.eventManager.removeListener(this);
-	}
-
-	@EventMethod
-	public void onPlayerMove(PlayerMoveEvent event) {
-		mc.thePlayer.setSprinting(false);
-		Flight.INSTANCE.setEnabled(true);
-		if (fakePlayer != null)
-			fakePlayer.setHealth(mc.thePlayer.getHealth());
-		event.setMotionX(event.getMotionX() * speed.getValue());
-		event.setMotionY(event.getMotionY() * speed.getValue());
-		event.setMotionZ(event.getMotionZ() * speed.getValue());
-	}
 }

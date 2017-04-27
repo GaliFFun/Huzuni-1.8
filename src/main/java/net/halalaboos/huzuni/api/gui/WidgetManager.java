@@ -5,25 +5,29 @@ import net.halalaboos.huzuni.Huzuni;
 import net.halalaboos.huzuni.api.gui.widget.ScreenGlue;
 import net.halalaboos.huzuni.api.gui.widget.Widget;
 import net.halalaboos.huzuni.api.gui.widget.WidgetGlue;
-import net.halalaboos.huzuni.api.settings.JsonFileHandler;
-import net.halalaboos.huzuni.api.util.render.GLManager;
-import net.halalaboos.huzuni.api.util.render.RenderUtils;
+import net.halalaboos.huzuni.api.node.JsonFileHandler;
+import net.halalaboos.huzuni.api.util.gl.GLUtils;
+import net.halalaboos.mcwrapper.api.event.input.KeyboardEvent;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+
+import static net.halalaboos.mcwrapper.api.MCWrapper.getEventManager;
 
 /**
  * Manages widgets and handles their logic/render. Can save or load the widgets.
  */
 public class WidgetManager extends JsonFileHandler {
 	
-	private final List<Widget> widgets = new ArrayList<Widget>();
+	private final List<Widget> widgets = new ArrayList<>();
 	
 	private Theme theme;
 	
 	public WidgetManager(Huzuni huzuni) {
 		super(huzuni, null);
+
+		getEventManager().subscribe(KeyboardEvent.class, event -> keyTyped(event.getKeyCode()));
 	}
 
 	/***
@@ -64,8 +68,8 @@ public class WidgetManager extends JsonFileHandler {
 		for (int i = 0; i < widgets.size(); i++) {
 			Widget widget = widgets.get(i);
 			if (widget.isEnabled()) {
-				GLManager.glColor(1F, 1F, 1F, 1F);
-				RenderUtils.drawBorder(1F, widget.getX(), widget.getY(), widget.getX() + widget.getWidth(), widget.getY() + widget.getHeight());
+				GLUtils.glColor(1F, 1F, 1F, 1F);
+				GLUtils.drawBorder(1F, widget.getX(), widget.getY(), widget.getX() + widget.getWidth(), widget.getY() + widget.getHeight());
 				if (widget.isDragging()) {
 					renderGlue(widget);
 				}
@@ -101,12 +105,12 @@ public class WidgetManager extends JsonFileHandler {
 			x = style == WidgetGlue.LEFT_BOTTOM || style == WidgetGlue.LEFT_TOP || style == WidgetGlue.LEFT_CENTER || style == WidgetGlue.TOP_RIGHT || style == WidgetGlue.BOTTOM_RIGHT ? widget.getX() + widget.getWidth() : style == WidgetGlue.RIGHT_BOTTOM || style == WidgetGlue.RIGHT_TOP || style == WidgetGlue.RIGHT_CENTER || style == WidgetGlue.TOP_LEFT || style == WidgetGlue.BOTTOM_LEFT ? widget.getX() : style == WidgetGlue.TOP_CENTER || style == WidgetGlue.BOTTOM_CENTER ? widget.getX() + widget.getWidth() / 2 : -1;
 			y = style == WidgetGlue.TOP_LEFT || style == WidgetGlue.TOP_RIGHT || style == WidgetGlue.TOP_CENTER || style == WidgetGlue.LEFT_BOTTOM || style == WidgetGlue.RIGHT_BOTTOM ? widget.getY() + widget.getHeight() : style == WidgetGlue.BOTTOM_LEFT || style == WidgetGlue.BOTTOM_RIGHT || style == WidgetGlue.BOTTOM_CENTER || style == WidgetGlue.LEFT_TOP || style == WidgetGlue.RIGHT_TOP ? widget.getY() : style == WidgetGlue.LEFT_CENTER || style == WidgetGlue.RIGHT_CENTER ? widget.getY() + widget.getHeight() / 2 : -1;
 		}
-		GLManager.glColor(1F, 0F, 0F, 1F);
+		GLUtils.glColor(1F, 0F, 0F, 1F);
 		if (x != -1)
-			RenderUtils.drawLine(1F, x, widget.getY(), x, widget.getY() + widget.getHeight());
+			GLUtils.drawLine(1F, x, widget.getY(), x, widget.getY() + widget.getHeight());
 		
 		if (y != -1) 
-			RenderUtils.drawLine(1F, widget.getX(), y, widget.getX() + widget.getWidth(), y);
+			GLUtils.drawLine(1F, widget.getX(), y, widget.getX() + widget.getWidth(), y);
 	}
 
 	/**
@@ -133,13 +137,44 @@ public class WidgetManager extends JsonFileHandler {
 		for (int i = 0; i < widgets.size(); i++) {
 			Widget other = widgets.get(i);
 			if (widget != other && other.isEnabled() && !WidgetGlue.isGluedTo(widget, other)) {
-				WidgetGlue glue = WidgetGlue.getMenuGlue(widget, other);
-				if (glue != null) {
+				WidgetGlue glue = WidgetGlue.getWidgetGlue(widget, other);
+				if (glue != null && widgetHasNone(widget, other, glue)) {
 					return glue;
 				}
 			}
 		}
 		return null;
+	}
+
+	/**
+	 * @return True if this widget has no other widgets with the same glue applied to it.
+	 * */
+	public boolean widgetHasNone(Widget current, Widget widget, WidgetGlue glue) {
+		for (int i = 0; i < widgets.size(); i++) {
+			Widget other = widgets.get(i);
+			if (other != current && other != widget && other.getGlue() instanceof WidgetGlue && other.isEnabled()) {
+				WidgetGlue otherGlue = (WidgetGlue) other.getGlue();
+				if (otherGlue.getWidget() == widget && otherGlue.getStyle() == glue.getStyle()) {
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+
+	/**
+	 * @return True if this widget has other widgets glued to it.
+	 * */
+	public boolean hasWidgetsGluedTo(Widget widget) {
+		for (int i = 0; i < widgets.size(); i++) {
+			Widget other = widgets.get(i);
+			if (widget != other && other.getGlue() instanceof WidgetGlue && other.isEnabled()) {
+				if (((WidgetGlue) other.getGlue()).getWidget() == widget) {
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 
 	public void addWidget(Widget widget) {

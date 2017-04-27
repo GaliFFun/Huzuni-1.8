@@ -1,43 +1,53 @@
 package net.halalaboos.huzuni.gui.widgets;
 
 import net.halalaboos.huzuni.api.gui.WidgetManager;
-import net.halalaboos.huzuni.api.settings.Value;
-import net.halalaboos.mcwrapper.api.util.MathUtils;
-import net.minecraft.entity.player.EntityPlayer;
+import net.halalaboos.huzuni.api.node.impl.Value;
+import net.halalaboos.mcwrapper.api.MCWrapper;
+import net.halalaboos.mcwrapper.api.client.ClientPlayer;
+import net.halalaboos.mcwrapper.api.entity.living.player.Player;
+
+import java.awt.*;
 
 /**
  * Renders the names of players within a given range.
  * */
 public class TextRadarWidget extends BackgroundWidget {
 
-	private final Value distance = new Value("Distance", "", 10F, 130F, 255F, 5F, "Distance required for entities to be rendered.");
-	
+	private final Value distance = new Value("Distance", 10F, 130F, 255F, 5F, "Distance required for entities to be rendered.");
+	private final Value opacity = new Value("Opacity", "%", 10F, 100F, 100F, 1F, "Opacity/transparency of the text.");
+	private final Value maxPlayers = new Value("Maximum Players", 1F, 100F, 100F, 1F, "Maximum amount of players to list on the radar.");
+
 	public TextRadarWidget(WidgetManager menuManager) {
 		super("Text Radar", "Render an old-school text radar", menuManager);
-		this.addChildren(distance);
+		this.addChildren(distance, opacity, maxPlayers);
 	}
 
 	@Override
 	public void renderMenu(int x, int y, int width, int height) {
 		super.renderMenu(x, y, width, height);
-		int incrementOffset = getIncrementOffset(), originalWidth = width;;
+		int incrementOffset = getIncrementOffset(), originalWidth = width;
 		height = 0;
 		width = 0;
 		if (incrementOffset == -1)
 			y = y + height - theme.getStringHeight("minimum");
-		
-		for (int i = 0; i < mc.theWorld.playerEntities.size(); i++) {
-			EntityPlayer player = mc.theWorld.playerEntities.get(i);
-			if (mc.thePlayer != player) {
-				float distance = MathUtils.sqrt((float) (mc.thePlayer.posX - player.posX) * (float) (mc.thePlayer.posX - player.posX) + (float) (mc.thePlayer.posZ - player.posZ) * (float) (mc.thePlayer.posZ - player.posZ));
+		ClientPlayer me = MCWrapper.getPlayer();
+		Color textColor = new Color(255, 255, 255, (int)((opacity.getValue() / 100) * 255));
+		int playerCount = 0;
+		for (Player player : MCWrapper.getWorld().getPlayers()) {
+			if (player != me && !player.isNPC()) {
+				double distance = me.getDistanceTo(player);
 				if (distance < this.distance.getValue()) {
-					String text = String.format("%s (%d)", player.getDisplayName().getFormattedText(), (int) distance);
-					int textWidth = theme.getStringWidth(text);
-					theme.drawStringWithShadow(text, getOffsetX(x, x + originalWidth, textWidth), y, 0xFFFFFF);
-					height += theme.getStringHeight(text);
-					y += incrementOffset * theme.getStringHeight(text);
-					if (textWidth + 2 > width)
-						width = textWidth + 2;
+					playerCount++;
+					if (playerCount <= maxPlayers.getValue()) {
+						String text = String.format("%s (%d)", player.name(), (int) distance);
+						int textWidth = theme.getStringWidth(text);
+						theme.drawStringWithShadow(text, getOffsetX(x, x + originalWidth, textWidth), y, textColor.getRGB());
+						height += theme.getStringHeight(text);
+						y += incrementOffset * theme.getStringHeight(text);
+						if (textWidth + 2 > width) {
+							width = textWidth + 2;
+						}
+					}
 				}
 			}
 		}

@@ -2,8 +2,8 @@ package net.halalaboos.huzuni.api.gui.components.tree;
 
 import net.halalaboos.huzuni.api.gui.Theme;
 import net.halalaboos.huzuni.api.gui.components.BasicSlider;
-import net.halalaboos.huzuni.api.settings.ColorNode;
-import net.halalaboos.huzuni.api.util.render.GLManager;
+import net.halalaboos.huzuni.api.node.impl.ColorNode;
+import net.halalaboos.huzuni.api.util.gl.GLUtils;
 
 import java.awt.*;
 import java.util.ArrayList;
@@ -84,7 +84,7 @@ public class ColorNodeComponent extends NodeTreeComponent <ColorNode> {
 		int hue = 0;
 		for (int i = 0; i < count; i++) {
 			hue += increment;
-			options.add(GLManager.getHSBColor((float) hue / 360F, saturationSlider.getSliderPercentage(), luminanceSlider.getSliderPercentage()));
+			options.add(GLUtils.getHSBColor((float) hue / 360F, saturationSlider.getSliderPercentage(), luminanceSlider.getSliderPercentage()));
 		}
 	}
 	

@@ -1,108 +1,214 @@
 package net.halalaboos.huzuni.api.util;
 
-import com.google.common.collect.Multimap;
 import com.mojang.authlib.Agent;
 import com.mojang.authlib.exceptions.AuthenticationException;
 import com.mojang.authlib.yggdrasil.YggdrasilAuthenticationService;
 import com.mojang.authlib.yggdrasil.YggdrasilUserAuthentication;
 import net.halalaboos.huzuni.Huzuni;
-import net.minecraft.client.Minecraft;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.SharedMonsterAttributes;
-import net.minecraft.entity.ai.attributes.AttributeModifier;
-import net.minecraft.entity.monster.IMob;
-import net.minecraft.entity.passive.IAnimals;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.init.Blocks;
-import net.minecraft.item.ItemStack;
-import net.minecraft.potion.Potion;
-import net.minecraft.util.*;
+import net.halalaboos.mcwrapper.api.entity.Entity;
+import net.halalaboos.mcwrapper.api.entity.living.Animal;
+import net.halalaboos.mcwrapper.api.entity.living.Living;
+import net.halalaboos.mcwrapper.api.entity.living.Monster;
+import net.halalaboos.mcwrapper.api.entity.living.player.Player;
+import net.halalaboos.mcwrapper.api.potion.Potion;
+import net.halalaboos.mcwrapper.api.potion.PotionEffect;
+import net.halalaboos.mcwrapper.api.util.enums.Face;
+import net.halalaboos.mcwrapper.api.util.math.MathUtils;
+import net.halalaboos.mcwrapper.api.util.math.Result;
+import net.halalaboos.mcwrapper.api.util.math.Vector3d;
+import net.halalaboos.mcwrapper.api.util.math.Vector3i;
 
-import java.net.Proxy;
 import java.util.Collection;
+import java.util.Optional;
+import java.util.UUID;
+
+import static net.halalaboos.mcwrapper.api.MCWrapper.*;
 
 /**
  * Easy to use functions that calculate blah blah blah relating to Minecraft.
  * */
 public final class MinecraftUtils {
-
-	private static final Minecraft mc = Minecraft.getMinecraft();
-
+	
 	private static final Huzuni huzuni = Huzuni.INSTANCE;
-
+	
 	private MinecraftUtils() {
-
+		
 	}
-
+	
 	/**
 	 * @return The address the player is currently connected to.
 	 * */
 	public static String getCurrentServer() {
-		return mc.getCurrentServerData() == null ? "localhost" : mc.getCurrentServerData().serverIP;
+		return !getMinecraft().getServerInfo().isPresent() ? "localhost" : getMinecraft().getServerInfo().get().getIP();
 	}
-
+	
 	/**
 	 * Attempts to log into a Minecraft account using the username and password provided.
-	 * @return a {@link Session} class with the account's new session.
 	 * */
-	public static Session loginToMinecraft(String username, String password) throws AuthenticationException {
-		YggdrasilAuthenticationService authenticationService = new YggdrasilAuthenticationService( Proxy.NO_PROXY, "");
+	public static void loginToMinecraft(String username, String password) throws AuthenticationException {
+		YggdrasilAuthenticationService authenticationService = new YggdrasilAuthenticationService(getMinecraft().getProxy(), UUID.randomUUID().toString());
 		YggdrasilUserAuthentication userAuthentication = (YggdrasilUserAuthentication) authenticationService .createUserAuthentication(Agent.MINECRAFT);
 		userAuthentication.setUsername(username);
 		userAuthentication.setPassword(password);
 		userAuthentication.logIn();
-		return new Session(userAuthentication.getSelectedProfile().getName(), userAuthentication.getSelectedProfile().getId().toString(), userAuthentication.getAuthenticatedToken(), "MOJANG" /* we mojang now ;)))*/);
+		getMinecraft().session().set(userAuthentication.getSelectedProfile().getName(), userAuthentication.getSelectedProfile().getId().toString(), userAuthentication.getAuthenticatedToken(), username.contains("@") ? "mojang" : "");
+	}
+
+	public static void loginOffline(String username) {
+		getMinecraft().session().set(username, "", "", "");
 	}
 
 	/**
-	 * @return True if the entity type is 
+     * @return Rotations needed to face the position.
+     */
+	public static float[] getRotationsNeeded(double x, double y, double z) {
+        double xSize = x - getPlayer().getX();
+        double ySize = y - (getPlayer().getY() + getPlayer().getEyeHeight());
+        double zSize = z - getPlayer().getZ();
+        
+        double theta = (double) MathUtils.sqrt(xSize * xSize + zSize * zSize);
+        float yaw = (float) (Math.atan2(zSize, xSize) * 180.0D / Math.PI) - 90.0F;
+        float pitch = (float) (-(Math.atan2(ySize, theta) * 180.0D / Math.PI));
+        return new float[] {
+        		(getPlayer().getYaw() + MathUtils.wrapDegrees(yaw - getPlayer().getYaw())) % 360F,
+        		(getPlayer().getPitch() + MathUtils.wrapDegrees(pitch - getPlayer().getPitch())) % 360F,
+        };
+	}
+
+	/**
+	 * @return the difference between two yaw values
 	 * */
-	public static boolean checkType(Entity entity, boolean invisible, boolean mob, boolean animal, boolean player) {
-		if (!entity.isEntityAlive())
-			return false;
-		if (entity.isInvisible() && !invisible)
-			return false;
-		if (mob && entity instanceof IMob)
+	public static float getYawDifference(float currentYaw, float neededYaw) {
+		float yawDifference = neededYaw - currentYaw;
+		if (yawDifference > 180)
+			yawDifference = -((360F - neededYaw) + currentYaw);
+		else if (yawDifference < -180)
+			yawDifference = ((360F - currentYaw) + neededYaw);
+		
+		return yawDifference;
+	}
+
+	public static float calculatePlayerDamage(Living entity, net.halalaboos.mcwrapper.api.item.ItemStack item) {
+		return calculatePlayerDamage(entity, item, getPlayer().getAttackStrength());
+	}
+
+	public static float calculatePlayerDamage(Living entity, net.halalaboos.mcwrapper.api.item.ItemStack item, float cooldown) {
+		return getPlayer().calculateDamage(entity, item, cooldown);
+	}
+
+	/**
+	 * Raytraces to find a face on the block that can be seen by the player.
+	 * */
+	public static Face findFace(Vector3i position) {
+		if (getWorld().blockExists(position)) {
+			for (Face face : Face.values()) {
+				Vector3d player = getPlayer().getLocation().addY(getPlayer().getEyeHeight());
+				Vector3i faceVec = face.getDirectionVector();
+				Vector3d block = new Vector3d(position.getX() + 0.5F + (float) (faceVec.getX()) / 2F,
+						position.getY() + 0.5F + (float) (faceVec.getY()) / 2F,
+						position.getZ() + 0.5F + (float) (faceVec.getZ()) / 2F);
+				Optional<Result> result = getWorld().getResult(player, block);
+				if (!result.isPresent() || result.get() == Result.MISS) {
+					return face;
+				}
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Finds the face of the first adjacent block that can be seen by the player.
+	 * */
+	public static Face getAdjacent(Vector3i position) {
+		for (Face face : Face.values()) {
+			Vector3i otherPosition = position.offset(face);
+			if (getWorld().blockExists(otherPosition)) {
+				Face otherFace = face.getOppositeFace();
+				Vector3d player = getPlayer().getLocation().addY(getPlayer().getEyeHeight());
+
+				Vector3i faceVec = otherFace.getDirectionVector();
+				Vector3d block = new Vector3d(otherPosition.getX() + 0.5F + (float) (faceVec.getX()) / 2F,
+						otherPosition.getY() + 0.5F + (float) (faceVec.getY()) / 2F,
+						otherPosition.getZ() + 0.5F + (float) (faceVec.getZ()) / 2F);
+				Optional<Result> result = getWorld().getResult(player, block);
+				if (!result.isPresent() || result.get() == Result.MISS) {
+					return face;
+				}
+			}
+		}
+		return null;
+	}
+
+	public static int getPotionY() {
+		boolean hidden = true;
+		Collection<PotionEffect> effects = getPlayer().getEffects();
+		if (!effects.isEmpty()) {
+			for (PotionEffect effect : effects) {
+				if (effect.showParticles()) hidden = false;
+				Potion potion = effect.getEffect();
+				if (potion.hasIcon()) {
+					if (potion.getType() != Potion.Type.BENEFICIAL) {
+						return 52;
+					}
+				}
+			}
+		}
+		return hidden ? 0 : 26;
+	}
+
+	/**
+	 * @return True if the item is shift clickable.
+	 */
+	public static boolean isShiftable(net.halalaboos.mcwrapper.api.item.ItemStack preferedItem) {
+		if (preferedItem.empty())
 			return true;
-		if (animal && entity instanceof IAnimals && !(entity instanceof IMob))
-			return true;
-		if (player && entity instanceof EntityPlayer)
-			return true;
+		for (int o = 36; o < 45; o++) {
+			if (getPlayer().getPlayerInventory().getStack(o).isPresent()) {
+				net.halalaboos.mcwrapper.api.item.ItemStack item = getPlayer().getPlayerInventory().getStack(o).get();
+				if (item.getItemType().getId() == preferedItem.getItemType().getId()) {
+					if (item.getSize() + preferedItem.getSize() <= preferedItem.getMaxSize())
+						return true;
+				}
+			} else
+				return true;
+		}
 		return false;
+	}
+
+	/**
+	 * @return True if the entity type is
+	 * */
+	public static boolean checkType(Entity entity, boolean invisible, boolean mob,
+									boolean animal, boolean player) {
+		return !entity.isDead() && !(entity.isInvisible() && !invisible) &&
+				(mob && entity instanceof Monster || animal && entity instanceof Animal && !(entity instanceof Monster)
+						|| player && entity instanceof Player && !((Player) entity).isNPC());
 	}
 
 	/**
 	 * @return True if the entity age is greater than or equal to 20
 	 * */
-	public static boolean checkAge(EntityLivingBase entity) {
-		return checkAge(entity, 20);
-	}
-
-	/**
-	 * @return True if the entity age is greater than or equal to the age specified
-	 * */
-	public static boolean checkAge(EntityLivingBase entity, float age) {
-		return entity.ticksExisted >= age;
+	public static boolean checkAge(Entity entity) {
+		return entity.getExistedTicks() >= 20;
 	}
 
 	/**
 	 * @return The closest entity to the player
 	 * */
-	public static EntityLivingBase getClosestEntityToPlayer(Entity toPlayer, float distance, float extender, boolean invisible, boolean mob, boolean animal, boolean player, boolean ageCheck) {
-		EntityLivingBase currentEntity = null;
-		for (int i = 0; i < mc.theWorld.loadedEntityList.size(); i++) {
-			if (mc.theWorld.loadedEntityList.get(i) instanceof EntityLivingBase) {
-				EntityLivingBase entity = (EntityLivingBase) mc.theWorld.loadedEntityList.get(i);
-				if (isAliveNotUs(entity) && checkType(entity, invisible, mob, animal, player) && checkTeam(entity) && checkProperties(entity) && (ageCheck ? checkAge(entity) : true)) {
-					if (isFriend(entity))
+	public static Living getClosestEntityToPlayer(Entity toPlayer, float distance, float extender, boolean invisible, boolean mob, boolean animal, boolean player, boolean ageCheck) {
+		Living currentEntity = null;
+		for (Entity entity : getWorld().getEntities()) {
+			if (entity instanceof Living) {
+				Living living = (Living)entity;
+				if (isAliveNotUs(living) && checkType(living, invisible, mob, animal, player) && checkTeam(living) && checkProperties(living) && (!ageCheck || checkAge(living))) {
+					if (isFriend(living))
 						continue;
 					if (currentEntity != null) {
-						if (toPlayer.getDistanceToEntity(entity) < toPlayer.getDistanceToEntity(currentEntity))
-							currentEntity = entity;
+						if (toPlayer.getDistanceTo(living) < toPlayer.getDistanceTo(currentEntity))
+							currentEntity = living;
 					} else {
-						if (toPlayer.getDistanceToEntity(entity) < distance + extender)
-							currentEntity = entity;
+						if (toPlayer.getDistanceTo(living) < distance + extender)
+							currentEntity = living;
 					}
 				}
 			}
@@ -113,20 +219,20 @@ public final class MinecraftUtils {
 	/**
 	 * @return The closest entity to the player that requires the least change in yaw and pitch
 	 * */
-	public static EntityLivingBase getClosestEntity(float distance, float extender, boolean invisible, boolean mob, boolean animal, boolean player, boolean ageCheck) {
-		EntityLivingBase currentEntity = null;
-		for (int i = 0; i < mc.theWorld.loadedEntityList.size(); i++) {
-			if (mc.theWorld.loadedEntityList.get(i) instanceof EntityLivingBase) {
-				EntityLivingBase entity = (EntityLivingBase) mc.theWorld.loadedEntityList.get(i);
-				if (isAliveNotUs(entity) && checkType(entity, invisible, mob, animal, player) && checkTeam(entity) && checkProperties(entity) && (ageCheck ? checkAge(entity) : true)) {
-					if (isFriend(entity))
+	public static Living getClosestEntity(float distance, float extender, boolean invisible, boolean mob, boolean animal, boolean player, boolean ageCheck) {
+		Living currentEntity = null;
+		for (Entity entity : getWorld().getEntities()) {
+			if (entity instanceof Living) {
+				Living living = (Living)entity;
+				if (isAliveNotUs(living) && checkType(living, invisible, mob, animal, player) && checkTeam(living) && checkProperties(living) && (!ageCheck || checkAge(living))) {
+					if (isFriend(living))
 						continue;
 					if (currentEntity != null) {
-						if (isWithinDistance(entity, distance + extender) && isClosestToMouse(currentEntity, entity, distance, extender))
-							currentEntity = entity;
+						if (isWithinDistance(living, distance + extender) && isClosestToMouse(currentEntity, living, distance, extender))
+							currentEntity = living;
 					} else {
-						if (isWithinDistance(entity, distance + extender))
-							currentEntity = entity;
+						if (isWithinDistance(living, distance + extender))
+							currentEntity = living;
 					}
 				}
 			}
@@ -137,20 +243,20 @@ public final class MinecraftUtils {
 	/**
 	 * @return The closest entity to our mouse that is within our FOV
 	 * */
-	public static EntityLivingBase getEntityWithinFOV(float fov, boolean invisible, boolean mob, boolean animal, boolean player, boolean ageCheck) {
-		EntityLivingBase currentEntity = null;
-		for (int i = 0; i < mc.theWorld.loadedEntityList.size(); i++) {
-			if (mc.theWorld.loadedEntityList.get(i) instanceof EntityLivingBase) {
-				EntityLivingBase entity = (EntityLivingBase) mc.theWorld.loadedEntityList.get(i);
-				if (isAliveNotUs(entity) && checkType(entity, invisible, mob, animal, player) && checkTeam(entity) && checkProperties(entity) && (ageCheck ? checkAge(entity) : true)) {
-					if (isFriend(entity))
+	public static Living getEntityWithinFOV(float fov, boolean invisible, boolean mob, boolean animal, boolean player, boolean ageCheck) {
+		Living currentEntity = null;
+		for (Entity entity : getWorld().getEntities()) {
+			if (entity instanceof Living) {
+				Living living = (Living)entity;
+				if (isAliveNotUs(living) && checkType(living, invisible, mob, animal, player) && checkTeam(living) && checkProperties(living) && (!ageCheck || checkAge(living))) {
+					if (isFriend(living))
 						continue;
 					if (currentEntity != null) {
-						if (isWithinFOV(entity, fov) && isClosestToMouse(currentEntity, entity, -1, 0))
-							currentEntity = entity;
+						if (isWithinFOV(living, fov) && isClosestToMouse(currentEntity, living, -1, 0))
+							currentEntity = living;
 					} else {
-						if (isWithinFOV(entity, fov))
-							currentEntity = entity;
+						if (isWithinFOV(living, fov))
+							currentEntity = living;
 					}
 				}
 			}
@@ -161,33 +267,36 @@ public final class MinecraftUtils {
 	/**
 	 * @return True if the entity is another player and does not contain any properties
 	 * */
-	public static boolean checkProperties(EntityLivingBase entity) {
-		return !(entity instanceof EntityPlayer) || ((EntityPlayer) entity).getGameProfile().getProperties().size() > 0;
+	public static boolean checkProperties(Living entity) {
+		return !(entity instanceof Player) || ((Player) entity).getProfile().getProperties().size() > 0;
+	}
+
+	/**
+	 * @return True if the entity is another player and does not contain any properties
+	 * */
+	public static boolean checkProperties(Entity entity) {
+		return !(entity instanceof Player) || ((Player) entity).getProfile().getProperties().size() > 0;
 	}
 
 	/**
 	 * @return True if the entity is within the player's friends list
 	 * */
-	public static boolean isFriend(EntityLivingBase entity) {
-		return entity instanceof EntityPlayer && huzuni.friendManager.isFriend(entity.getName());
+	public static boolean isFriend(Living entity) {
+		return entity instanceof Player && huzuni.friendManager.isFriend(entity.name());
 	}
 
 	/**
 	 * @return True if the entity is another player and is on the player's team
 	 * */
-	public static boolean checkTeam(EntityLivingBase entity) {
-		if (!huzuni.settings.team.isEnabled() || !huzuni.settings.team.hasSelected())
-			return true;
-		if (entity instanceof EntityPlayer)
-			return !huzuni.settings.team.hasTeamColor(entity.getDisplayName().getFormattedText());
-		else
-			return true;
+	public static boolean checkTeam(Living entity) {
+		return !huzuni.settings.team.isEnabled() || !huzuni.settings.team.hasSelected() ||
+				!(entity instanceof Player) || !huzuni.settings.team.hasTeamColor(entity.getFormattedName());
 	}
 
 	/**
 	 * @return The closest entity to your mouse
 	 */
-	public static boolean isClosestToMouse(EntityLivingBase currentEntity, EntityLivingBase otherEntity, float distance, float extender) {
+	public static boolean isClosestToMouse(Living currentEntity, Living otherEntity, float distance, float extender) {
 
 		// If we can't reach our current entity without the extender, but we CAN with our OTHER entity, return true.
 		if (!isWithinDistance(currentEntity, distance) && isWithinDistance(otherEntity, distance))
@@ -201,188 +310,54 @@ public final class MinecraftUtils {
 	/**
 	 * @return True if the entity is within the distance specified to the player
 	 * */
-	public static boolean isWithinDistance(EntityLivingBase entity, float distance) {
-		return distance == -1 || mc.thePlayer.getDistanceToEntity(entity) < distance;
+	public static boolean isWithinDistance(Living entity, float distance) {
+		return distance == -1 || getPlayer().getDistanceTo(entity) < distance;
 	}
 
 	/**
 	 * @return True if the entity is alive and not the player
 	 * */
-	public static boolean isAliveNotUs(EntityLivingBase entity) {
-		if (entity.getName().equalsIgnoreCase(mc.thePlayer.getName()))
-			return false;
-		return (entity != null) && entity.isEntityAlive() && entity != mc.thePlayer;
+	public static boolean isAliveNotUs(Living entity) {
+		return !entity.name().equalsIgnoreCase(getPlayer().name()) && !entity.isDead() && entity != getPlayer();
 	}
 
 	/**
 	 * @return Distance the entity is from our mouse.
 	 */
-	public static float getDistanceFromMouse(EntityLivingBase entity) {
+	public static float getDistanceFromMouse(Living entity) {
 		float[] neededRotations = getRotationsNeeded(entity);
 		if (neededRotations != null) {
-			float neededYaw = getYawDifference(mc.thePlayer.rotationYaw % 360F, neededRotations[0]), neededPitch = (mc.thePlayer.rotationPitch % 360F) - neededRotations[1];
-			return net.halalaboos.mcwrapper.api.util.MathUtils.sqrt(neededYaw * neededYaw + neededPitch * neededPitch);
+			float neededYaw = getYawDifference(getPlayer().getYaw() % 360F, neededRotations[0]), neededPitch = (getPlayer().getPitch() % 360F) - neededRotations[1];
+			return net.halalaboos.mcwrapper.api.util.math.MathUtils.sqrt(neededYaw * neededYaw + neededPitch * neededPitch);
 		}
 		return -1F;
 	}
 
 	/**
-	 * @return Rotations needed to face the position.
-	 */
-	public static float[] getRotationsNeeded(double x, double y, double z) {
-		double xSize = x - mc.thePlayer.posX;
-		double ySize = y - (mc.thePlayer.posY + (double) mc.thePlayer.getEyeHeight());
-		double zSize = z - mc.thePlayer.posZ;
-
-		double theta = (double) net.halalaboos.mcwrapper.api.util.MathUtils.sqrt(xSize * xSize + zSize * zSize);
-		float yaw = (float) (Math.atan2(zSize, xSize) * 180.0D / Math.PI) - 90.0F;
-		float pitch = (float) (-(Math.atan2(ySize, theta) * 180.0D / Math.PI));
-		return new float[] {
-				(mc.thePlayer.rotationYaw + net.halalaboos.mcwrapper.api.util.MathUtils.wrapDegrees(yaw - mc.thePlayer.rotationYaw)) % 360F,
-				(mc.thePlayer.rotationPitch + net.halalaboos.mcwrapper.api.util.MathUtils.wrapDegrees(pitch - mc.thePlayer.rotationPitch)) % 360F,
-		};
-	}
-
-	/**
 	 * @return Rotations needed to face the entity.
 	 */
-	public static float[] getRotationsNeeded(EntityLivingBase entity) {
+	public static float[] getRotationsNeeded(Living entity) {
 		if (entity == null)
 			return null;
-		return getRotationsNeeded(entity.posX, entity.posY + ((double) entity.getEyeHeight() / 2F), entity.posZ);
-	}
-
-	/**
-	 * @return Rotations needed to face the entity without constantly snapping the player's head.
-	 */
-	public static float[] getRotationsNeededLenient(EntityLivingBase entity) {
-		if (entity == null)
-			return null;
-		float yaw = mc.thePlayer.rotationYaw % 360F, pitch = mc.thePlayer.rotationPitch % 360F; /* Player's current yaw/pitch */
-		float[] rotations = getRotationsNeeded(entity.posX, entity.posY + ((double) entity.getEyeHeight() / 2F), entity.posZ); /* Required yaw/pitch to be looking at center of the entity */
-		float[] rotationCaps = getEntityCaps(entity);
-		float yawDifference = getYawDifference(yaw, rotations[0]), pitchDifference = rotations[1] - pitch; /* Calculates the difference between player's yaw/pitch and the required yaw/pitch */
-
-		if (yawDifference > rotationCaps[0] || yawDifference < -rotationCaps[0]) { /* If our yaw difference is outside of the maximum/minimum yaw required to be looking at an entity, let's change things up and move the yaw to the edge of the entity */
-			if (yawDifference < 0) {
-				yaw += yawDifference + rotationCaps[0];
-			} else if (yawDifference > 0) {
-				yaw += yawDifference - rotationCaps[0];
-			}
-		}
-		if (pitchDifference > rotationCaps[1] || pitchDifference < -rotationCaps[1]) {
-			if (pitchDifference < 0) {
-				pitch += pitchDifference + rotationCaps[1];
-			} else if (pitchDifference > 0) {
-				pitch += pitchDifference - rotationCaps[1];
-			}
-		}
-		return new float[] { yaw, pitch };
-	}
-
-	/**
-	 * @return the yaw and pitch constraints needed to keep the player's head within an entity
-	 * */
-	public static float[] getEntityCaps(EntityLivingBase entity) {
-		return getEntityCaps(entity, 6.5F);
+		return getRotationsNeeded(entity.getX(), entity.getY() + ((double) entity.getEyeHeight() / 2F), entity.getZ());
 	}
 
 	/**
 	 * @return Maximum/minimum rotation leniency allowed to still be considered 'inside' of a given entity.
 	 * */
-	public static float[] getEntityCaps(EntityLivingBase entity, float distance) {
-		float distanceRatio = distance / mc.thePlayer.getDistanceToEntity(entity); /* I honestly do not remember my logic behind this and I don't want to bring out a notebook and figure out why this works, but it seems to work */
+	public static float[] getEntityCaps(Living entity, float distance) {
+		float distanceRatio = distance / ((float) getPlayer().getDistanceTo(entity)); /* I honestly do not remember my logic behind this and I don't want to bring out a notebook and figure out why this works, but it seems to work */
 		float entitySize = 5F; /* magic number */
-		return new float[] { distanceRatio * entity.width * entitySize, distanceRatio * entity.height * entitySize };
-	}
-
-	/**
-	 * @return the difference between two yaw values
-	 * */
-	public static float getYawDifference(float currentYaw, float neededYaw) {
-		float yawDifference = neededYaw - currentYaw;
-		if (yawDifference > 180)
-			yawDifference = -((360F - neededYaw) + currentYaw);
-		else if (yawDifference < -180)
-			yawDifference = ((360F - currentYaw) + neededYaw);
-
-		return yawDifference;
+		return new float[] { distanceRatio * entity.getWidth() * entitySize, distanceRatio * entity.getHeight() * entitySize };
 	}
 
 	/**
 	 * Compares the needed yaw to the player's yaw and returns whether or not it is less than the fov.
 	 * @return True if the entity is within the FOV specified.
 	 * */
-	public static boolean isWithinFOV(EntityLivingBase entity, float fov) {
+	public static boolean isWithinFOV(Living entity, float fov) {
 		float[] rotations = getRotationsNeeded(entity);
-		float yawDifference = getYawDifference(mc.thePlayer.rotationYaw % 360F, rotations[0]);
+		float yawDifference = getYawDifference(getPlayer().getYaw() % 360F, rotations[0]);
 		return yawDifference < fov && yawDifference > -fov;
-	}
-
-	/**
-	 * Raytraces to find a face on the block that can be seen by the player.
-	 * */
-	public static EnumFacing findFace(BlockPos position) {
-		if (mc.theWorld.getBlockState(position).getBlock() != Blocks.air) {
-			for (EnumFacing face : EnumFacing.values()) {
-				Vec3 playerVec = new Vec3(mc.thePlayer.posX, mc.thePlayer.posY + mc.thePlayer.getEyeHeight(), mc.thePlayer.posZ);
-				Vec3 blockVec = new Vec3(position.getX() + 0.5F + (float) (face.getDirectionVec().getX()) / 2F, position.getY() + 0.5F + (float) (face.getDirectionVec().getY()) / 2F, position.getZ() + 0.5F + (float) (face.getDirectionVec().getZ()) / 2F);
-				MovingObjectPosition raytraceResult = mc.theWorld.rayTraceBlocks(playerVec, blockVec);
-				if (raytraceResult == null || raytraceResult.typeOfHit == MovingObjectPosition.MovingObjectType.MISS) {
-					return face;
-				}
-			}
-		}
-		return null;
-	}
-
-	/**
-	 * Finds the face of the first adjacent block that can be seen by the player.
-	 * */
-	public static EnumFacing getAdjacent(BlockPos position) {
-		for (EnumFacing face : EnumFacing.values()) {
-			BlockPos otherPosition = position.offset(face);
-			if (mc.theWorld.getBlockState(otherPosition).getBlock() != Blocks.air) {
-				EnumFacing otherFace = face.getOpposite();
-				Vec3 playerVec = new Vec3(mc.thePlayer.posX, mc.thePlayer.posY + mc.thePlayer.getEyeHeight(), mc.thePlayer.posZ);
-				Vec3 blockVec = new Vec3(otherPosition.getX() + 0.5F + (float) (otherFace.getDirectionVec().getX()) / 2F, otherPosition.getY() + 0.5F + (float) (otherFace.getDirectionVec().getY()) / 2F, otherPosition.getZ() + 0.5F + (float) (otherFace.getDirectionVec().getZ()) / 2F);
-				MovingObjectPosition raytraceResult = mc.theWorld.rayTraceBlocks(playerVec, blockVec);
-				if (raytraceResult == null || raytraceResult.typeOfHit == MovingObjectPosition.MovingObjectType.MISS) {
-					return face;
-				}
-			}
-		}
-		return null;
-	}
-
-	public static float getDamgage(EntityLivingBase entity, ItemStack item) {
-		float attackAttribute = (float) mc.thePlayer.getEntityAttribute(SharedMonsterAttributes.attackDamage).getBaseValue();
-		if (item != null) {
-			Multimap<String, AttributeModifier> attributes = item.getAttributeModifiers();
-			Collection<AttributeModifier> attackModifier = attributes.get(SharedMonsterAttributes.attackDamage.getAttributeUnlocalizedName());
-			for (AttributeModifier modifier : attackModifier) {
-				attackAttribute += modifier.getAmount();
-			}
-			if (attackAttribute > 0.0F) {
-				boolean hasKnockback = false;
-				boolean hasCritical;
-				hasCritical = hasKnockback && mc.thePlayer.fallDistance > 0.0F && !mc.thePlayer.onGround && !mc.thePlayer.isOnLadder() && !mc.thePlayer.isInWater() && !mc.thePlayer.isPotionActive(Potion.blindness) && !mc.thePlayer.isRiding();
-				hasCritical = hasCritical && !mc.thePlayer.isSprinting();
-				if (hasCritical) {
-					attackAttribute *= 1.5F;
-				}
-				attackAttribute = getDamageAfterMagicAbsorb(attackAttribute, (float) entity.getTotalArmorValue());
-				attackAttribute = Math.max(attackAttribute - entity.getAbsorptionAmount(), 0.0F);
-				return attackAttribute;
-			} else
-				return 0F;
-		}
-		return attackAttribute;
-	}
-
-
-	private static float getDamageAfterMagicAbsorb(float p_188401_0_, float p_188401_1_) {
-		float f = MathUtils.clamp(p_188401_1_, 0.0F, 20.0F);
-		return p_188401_0_ * (1.0F - f / 25.0F);
 	}
 }

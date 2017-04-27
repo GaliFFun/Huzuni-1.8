@@ -1,10 +1,11 @@
 package net.halalaboos.huzuni;
 
-import net.halalaboos.huzuni.api.event.EventManager;
-import net.halalaboos.huzuni.api.mod.CommandManager;
-import net.halalaboos.huzuni.api.mod.KeybindManager;
+import net.halalaboos.huzuni.api.account.AccountManager;
+import net.halalaboos.huzuni.api.gui.MinecraftFontRenderer;
 import net.halalaboos.huzuni.api.mod.Mod;
 import net.halalaboos.huzuni.api.mod.ModManager;
+import net.halalaboos.huzuni.api.mod.command.CommandManager;
+import net.halalaboos.huzuni.api.mod.keybind.KeybindManager;
 import net.halalaboos.huzuni.api.plugin.PluginManager;
 import net.halalaboos.huzuni.api.task.ClickTask;
 import net.halalaboos.huzuni.api.task.HotbarManager;
@@ -13,26 +14,25 @@ import net.halalaboos.huzuni.api.task.TaskManager;
 import net.halalaboos.huzuni.gui.GuiManager;
 import net.halalaboos.huzuni.gui.Notification;
 import net.halalaboos.huzuni.gui.Notification.NotificationType;
-import net.halalaboos.huzuni.mc.HuzuniIngameGui;
-import net.halalaboos.huzuni.meme.MemeManager;
 import net.halalaboos.huzuni.mod.Patcher;
 import net.halalaboos.huzuni.mod.combat.*;
 import net.halalaboos.huzuni.mod.commands.*;
 import net.halalaboos.huzuni.mod.mining.*;
 import net.halalaboos.huzuni.mod.misc.*;
+import net.halalaboos.huzuni.mod.misc.chat.ChatAnnoy;
 import net.halalaboos.huzuni.mod.misc.chat.ChatMutator;
 import net.halalaboos.huzuni.mod.movement.*;
 import net.halalaboos.huzuni.mod.visual.*;
-import net.halalaboos.huzuni.render.font.MinecraftFontRenderer;
-import net.halalaboos.mcwrapper.api.util.TextColor;
-import net.minecraft.client.Minecraft;
-import net.minecraft.util.ChatComponentText;
-import net.minecraft.util.IChatComponent;
+import net.halalaboos.huzuni.mod.visual.nametags.Nametags;
+import net.halalaboos.mcwrapper.api.MCWrapper;
+import net.halalaboos.mcwrapper.api.util.enums.TextColor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.awt.*;
 import java.io.File;
+
+import static net.halalaboos.mcwrapper.api.MCWrapper.getMinecraft;
 
 /**
  *
@@ -40,46 +40,46 @@ import java.io.File;
 public enum Huzuni {
 	INSTANCE;
 
-	public static final int BUILD_NUMBER = 19;
+	public static final int BUILD_NUMBER = 21;
 	public static String NAME = "Huzuni";
-	public static final String VERSION = NAME + " 5.0.2";
-	public static final String MCVERSION = "1.8.8";
+	public static final String VERSION = NAME + " 5.1";
+	public static final String ASSETS_LOCATION = "/assets/minecraft/huzuni/";
 
 	public static final Logger LOGGER = LogManager.getLogger("Huzuni");
-	
-	private final Patcher patcher = new Patcher();
-		
+
+	private final Patcher patcher = new Patcher(this);
+
 	public final PluginManager pluginManager = new PluginManager();
-		
+
 	public final ModManager modManager = new ModManager(this);
-	
+
 	public final CommandManager commandManager = new CommandManager(this);
-	
+
 	public final FriendManager friendManager = new FriendManager(this);
-	
+
 	public final KeybindManager keybindManager = new KeybindManager();
-	
+
 	public final RenderManager renderManager = new RenderManager(this);
-	
+
 	public final WaypointManager waypointManager = new WaypointManager(this);
-	
-	public final CapeManager capeManager = new CapeManager(this);
-	
-	public final MemeManager memeManager = new MemeManager(this);
-	
-	public final EventManager<Object> eventManager = new EventManager<>();
 
 	public final TaskManager<LookTask> lookManager = new TaskManager<>("Look Manager", "Manage which mods will prioritize when modifying the player rotation.");
-	
+
 	public final HotbarManager hotbarManager = new HotbarManager();
 
 	public final TaskManager<ClickTask> clickManager = new TaskManager<>("Click Manager", "Manage which mods will prioritize when sending window clicks.");
 
 	public final GuiManager guiManager = new GuiManager();
-	
+
 	public final HuzuniSettings settings = new HuzuniSettings(this);
 
 	public final MinecraftFontRenderer guiFontRenderer = new MinecraftFontRenderer(), chatFontRenderer = new MinecraftFontRenderer();
+
+	public final ResourceCreator resourceCreator = new ResourceCreator();
+
+	public final AccountManager accountManager = new AccountManager();
+
+//	public final ScriptManager scriptManager = new ScriptManager(this);
 
 	private File saveFolder = null;
 
@@ -89,10 +89,7 @@ public enum Huzuni {
      * Invoked when the game starts. Loads basic information.
      * */
 	public void start() {
-		Minecraft mc = Minecraft.getMinecraft();
-		File folder = mc.mcDataDir;
-		mc.ingameGUI = new HuzuniIngameGui(mc);
-
+		File folder = getMinecraft().getSaveDirectory();
 		guiFontRenderer.setFont(new Font("Verdana", Font.PLAIN, 18), true);
 		chatFontRenderer.setFont(new Font("Verdana", Font.PLAIN, 18), true);
 		guiManager.init();
@@ -100,10 +97,9 @@ public enum Huzuni {
 		friendManager.init();
 		keybindManager.init();
 		waypointManager.init();
-		capeManager.init();
-		memeManager.init();
 		settings.init();
 		patcher.init();
+//		scriptManager.init();
 		
 		saveFolder = new File(folder, "huzuni");
 		if (!saveFolder.exists())
@@ -113,17 +109,19 @@ public enum Huzuni {
 		friendManager.setFile(new File(saveFolder, "friends.json"));
 		guiManager.widgetManager.setFile(new File(saveFolder, "widgets.json"));
 		waypointManager.setFile(new File(saveFolder, "waypoints.json"));
-		capeManager.setFile(new File(saveFolder, "capes.json"));
 		pluginManager.setPluginFolder(new File(saveFolder, "plugins"));
+		accountManager.setFile(new File(saveFolder, "accounts.json"));
 		loadDefaults();
 		pluginManager.init();
 		settings.load();
+		accountManager.load();
 		friendManager.load();
 		waypointManager.load();
-		capeManager.load();
 		modManager.load();
 		guiManager.load();
 		new HuzuniUpdater(this).start();
+
+		Runtime.getRuntime().addShutdownHook(new Thread(this::end));
 	}
 
 	/**
@@ -133,10 +131,10 @@ public enum Huzuni {
 		modManager.save();
 		friendManager.save();
 		waypointManager.save();
-		capeManager.save();
 		guiManager.save();
 		settings.save();
 		pluginManager.save();
+		accountManager.save();
 	}
 
 	/**
@@ -153,7 +151,7 @@ public enum Huzuni {
 		modManager.addMod(new Smasher());
 		modManager.addMod(new Replica());
 		modManager.addMod(new ESP());
-		modManager.addMod(Nametags.INSTANCE);
+		modManager.addMod(new Nametags());
 		modManager.addMod(new StorageESP());
 		modManager.addMod(new Projectiles());
 		modManager.addMod(Xray.INSTANCE);
@@ -175,21 +173,26 @@ public enum Huzuni {
 		modManager.addMod(new Step());
 		modManager.addMod(new Fastplace());
 		modManager.addMod(new Timer());
-		modManager.addMod(new Autodisconnect());
+		modManager.addMod(new Autoquit());
 		modManager.addMod(new Autofish());
 		modManager.addMod(new Autotool());
 		modManager.addMod(new Respawn());
 		modManager.addMod(new Breadcrumb());
-		modManager.addMod(new MiddleClickFriends());
 		modManager.addMod(new Speedmine());
 		modManager.addMod(new Cheststealer());
 		modManager.addMod(new Retard());
+		modManager.addMod(new NoSlowdown());
+		modManager.addMod(new ChatAnnoy());
+		modManager.addMod(new NoEffect());
+		modManager.addMod(new AntiAFK());
+//		modManager.addMod(new ChatTranslator());
 		commandManager.addCommand(new Help());
 		commandManager.addCommand(new Say());
 		commandManager.addCommand(new GetCoords());
 		commandManager.addCommand(new GetIP());
 		commandManager.addCommand(new UsernameHistory());
 		commandManager.addCommand(new AllOff());
+		commandManager.addCommand(new GetBrand());
 		commandManager.addCommand(new Toggle());
 		commandManager.addCommand(new SetFont());
 		commandManager.addCommand(new Add());
@@ -201,26 +204,21 @@ public enum Huzuni {
 		commandManager.addCommand(new Bind());
 		commandManager.addCommand(new Authors());
 		commandManager.addCommand(new Enchant());
+		commandManager.addCommand(new VClip());
+		commandManager.addCommand(new Debug());
 		keybindManager.addKeybind(settings.keyOpenMenu);
+		keybindManager.addKeybind(settings.keyOpenTest);
 	}
 
 	/**
 	 * Prints the message to the in-game chat.
 	 * */
 	public void addChatMessage(String message) {
-		String output = TextColor.BLUE + "[H] " + TextColor.GRAY + message;
-        addChatMessage(new ChatComponentText(output.replaceAll("\u00a7r", "\u00a77")));
+		MCWrapper.getMinecraft().printMessage(TextColor.BLUE + "[H] " + TextColor.GRAY + message);
 	}
 
 	public void addFormattedMessage(String message, Object... args) {
 		addChatMessage(String.format(message, args));
-	}
-
-	/**
-     * Adds the text component to the in-game chat.
-     * */
-	public void addChatMessage(IChatComponent component) {
-		Minecraft.getMinecraft().ingameGUI.getChatGUI().printChatMessage(component);
 	}
 
 	/**

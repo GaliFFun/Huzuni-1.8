@@ -151,14 +151,14 @@ public class WidgetGlue implements Glue {
 	 * Calculates intersection between the current widget vs the other widget.
 	 * @return The glue which should be applied to the current widget.
 	 * */
-	public static WidgetGlue getMenuGlue(Widget current, Widget other) {
+	public static WidgetGlue getWidgetGlue(Widget current, Widget other) {
 		float x = current.getX(), x1 = current.getX() + current.getWidth(), y = current.getY(), y1 = current.getY() + current.getHeight();
 		float otherX = other.getX(), otherX1 = other.getX() + other.getWidth(), otherY = other.getY(), otherY1 = other.getY() + other.getHeight();
 		float width = other.getWidth(), height = other.getHeight();
 		float horizontalIntersection = 0, verticalIntersection = 0;
 		float distX = Math.abs(x - otherX), distX1 = Math.abs(otherX1 - x1), distY = Math.abs(y - otherY), distY1 = Math.abs(otherY1 - y1), 
 				distXCenter = Math.abs((current.getX() + current.getWidth() / 2) - (other.getX() + other.getWidth() / 2)),
-				distYCenter = Math.abs((current.getY() + current.getHeight() / 2) - (other.getY() + other.getHeight() / 2));;
+				distYCenter = Math.abs((current.getY() + current.getHeight() / 2) - (other.getY() + other.getHeight() / 2));
 		if ((x < otherX && x1 > otherX1) || (x > otherX && x1 < otherX1)) {
 			if (y < otherY1 && y > otherY)
 				if (distX < distX1 && distX < distXCenter)

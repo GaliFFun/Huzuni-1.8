@@ -1,9 +1,12 @@
 package net.halalaboos.huzuni.mod.movement;
 
-import net.halalaboos.huzuni.api.event.EventManager.EventMethod;
-import net.halalaboos.huzuni.api.event.PlayerMoveEvent;
 import net.halalaboos.huzuni.api.mod.BasicMod;
 import net.halalaboos.huzuni.api.mod.Category;
+import net.halalaboos.mcwrapper.api.event.player.MoveEvent;
+import net.halalaboos.mcwrapper.api.util.math.Vector3d;
+
+import static net.halalaboos.mcwrapper.api.MCWrapper.getPlayer;
+import static net.halalaboos.mcwrapper.api.MCWrapper.getWorld;
 
 /**
  * Prevents the player from falling from the edges of blocks.
@@ -14,26 +17,16 @@ public class Safewalk extends BasicMod {
 		super("Safewalk", "It's like sneaking, but without the sneaking");
 		setAuthor("Halalaboos");
 		setCategory(Category.MOVEMENT);
+		subscribe(MoveEvent.class, this::onPlayerMove);
 	}
-	
-	@Override
-	protected void onEnable() {
-		huzuni.eventManager.addListener(this);
-	}
-	
-	@Override
-	protected void onDisable() {
-		huzuni.eventManager.removeListener(this);
-	}
-	
-	@EventMethod
-	public void onPlayerMove(PlayerMoveEvent event) {
+
+	private void onPlayerMove(MoveEvent event) {
 		double x = event.getMotionX();
 		double y = event.getMotionY();
 		double z = event.getMotionZ();
-		if (mc.thePlayer.onGround) {
+		if (getPlayer().isOnGround()) {
 			double increment;
-			for (increment = 0.05D; x != 0.0D && mc.theWorld.getCollidingBoundingBoxes(mc.thePlayer, mc.thePlayer.getEntityBoundingBox().offset(x, -1.0D, 0.0D)).isEmpty();) {
+			for (increment = 0.05D; x != 0.0D && isOffsetBBEmpty(x, -1.0D, 0.0D);) {
 				if (x < increment && x >= -increment) {
 					x = 0.0D;
 				} else if (x > 0.0D) {
@@ -42,7 +35,7 @@ public class Safewalk extends BasicMod {
 					x += increment;
 				}
 			}
-			for (; z != 0.0D && mc.theWorld.getCollidingBoundingBoxes(mc.thePlayer, mc.thePlayer.getEntityBoundingBox().offset(0.0D, -1.0D, z)).isEmpty();) {
+			for (; z != 0.0D && isOffsetBBEmpty(0.0D, -1.0D, z);) {
 				if (z < increment && z >= -increment) {
 					z = 0.0D;
 				} else if (z > 0.0D) {
@@ -51,7 +44,7 @@ public class Safewalk extends BasicMod {
 					z += increment;
 				}
 			}
-			for (; x != 0.0D && z != 0.0D && mc.theWorld.getCollidingBoundingBoxes(mc.thePlayer, mc.thePlayer.getEntityBoundingBox().offset(x, -1.0D, z)).isEmpty();) {
+			for (; x != 0.0D && z != 0.0D && isOffsetBBEmpty(x, -1.0D, z);) {
 				if (x < increment && x >= -increment) {
 					x = 0.0D;
 				} else if (x > 0.0D) {
@@ -72,5 +65,8 @@ public class Safewalk extends BasicMod {
 		event.setMotionY(y);
 		event.setMotionZ(z);
 	}
-	
+
+	private boolean isOffsetBBEmpty(double x, double y, double z) {
+		return getWorld().isOffsetBBEmpty(new Vector3d(x, y, z));
+	}
 }

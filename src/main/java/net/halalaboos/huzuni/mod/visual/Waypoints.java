@@ -2,25 +2,22 @@ package net.halalaboos.huzuni.mod.visual;
 
 import net.halalaboos.huzuni.RenderManager.Renderer;
 import net.halalaboos.huzuni.WaypointManager.Waypoint;
-import net.halalaboos.huzuni.api.event.EventManager.EventMethod;
-import net.halalaboos.huzuni.api.event.PacketEvent;
-import net.halalaboos.huzuni.api.event.PacketEvent.Type;
-import net.halalaboos.huzuni.api.mod.BasicCommand;
 import net.halalaboos.huzuni.api.mod.Category;
 import net.halalaboos.huzuni.api.mod.Mod;
-import net.halalaboos.huzuni.api.settings.Toggleable;
-import net.halalaboos.huzuni.api.settings.Value;
-import net.halalaboos.huzuni.api.util.MathUtils;
-import net.halalaboos.huzuni.api.util.render.GLManager;
-import net.halalaboos.huzuni.api.util.render.RenderUtils;
-import net.halalaboos.huzuni.api.util.render.Texture;
-import net.halalaboos.mcwrapper.api.util.TextColor;
-import net.minecraft.client.renderer.GlStateManager;
-import net.minecraft.network.play.server.S06PacketUpdateHealth;
-import net.minecraft.util.BlockPos;
+import net.halalaboos.huzuni.api.mod.command.impl.BasicCommand;
+import net.halalaboos.huzuni.api.node.impl.Toggleable;
+import net.halalaboos.huzuni.api.node.impl.Value;
+import net.halalaboos.huzuni.api.util.gl.GLUtils;
+import net.halalaboos.huzuni.api.util.gl.Texture;
+import net.halalaboos.mcwrapper.api.event.network.PacketReadEvent;
+import net.halalaboos.mcwrapper.api.network.packet.server.HealthUpdatePacket;
+import net.halalaboos.mcwrapper.api.util.enums.TextColor;
+import net.halalaboos.mcwrapper.api.util.math.Vector3d;
+import net.halalaboos.mcwrapper.api.util.math.Vector3i;
 
 import java.awt.*;
 
+import static net.halalaboos.mcwrapper.api.MCWrapper.*;
 import static org.lwjgl.opengl.GL11.glLineWidth;
 
 /**
@@ -75,14 +72,14 @@ public class Waypoints extends Mod implements Renderer {
 					int x = (int) Double.parseDouble(args[1]);
 					int y = (int) Double.parseDouble(args[2]);
 					int z = (int) Double.parseDouble(args[3]);
-					if (huzuni.waypointManager.addWaypoint(new Waypoint(name, new BlockPos(x, y, z)))) {
+					if (huzuni.waypointManager.addWaypoint(new Waypoint(name, new Vector3i(x, y, z)))) {
 						huzuni.addChatMessage(String.format("Waypoint '" + TextColor.RED + "%s" + TextColor.GRAY + "' added at %d, %d, %d", name, x, y, z));
 						huzuni.waypointManager.save();
 					} else {
 						huzuni.addChatMessage(String.format("Waypoint '" + TextColor.RED + "%s" + TextColor.GRAY + "' already exists!", name));
 					}
 				} else {
-					BlockPos position = mc.thePlayer.getPosition();
+					Vector3i position = getPlayer().getLocation().toInt();
 					if (huzuni.waypointManager.addWaypoint(new Waypoint(name, position))) {
 						huzuni.addChatMessage(String.format("Waypoint '" + TextColor.RED + "%s" + TextColor.GRAY + "' added at %d, %d, %d", name, position.getX(), position.getY(), position.getZ()));
 						huzuni.waypointManager.save();
@@ -113,17 +110,24 @@ public class Waypoints extends Mod implements Renderer {
 			}
 			
 		}));
+		subscribe(PacketReadEvent.class, event -> {
+			if (event.getPacket() instanceof HealthUpdatePacket) {
+				HealthUpdatePacket packet = (HealthUpdatePacket) event.getPacket();
+				if (packet.getHearts() <= 0.0F && getPlayer().getLocation() != null) {
+					huzuni.waypointManager.addDeathPoint(getPlayer().getLocation().toInt());
+					huzuni.waypointManager.save();
+				}
+			}
+		});
 	}
 	
 	@Override
 	public void onEnable() {
-		huzuni.eventManager.addListener(this);
 		huzuni.renderManager.addWorldRenderer(this);
 	}
 	
 	@Override
 	public void onDisable() {
-		huzuni.eventManager.removeListener(this);
 		huzuni.renderManager.removeWorldRenderer(this);
 	}
 
@@ -132,66 +136,51 @@ public class Waypoints extends Mod implements Renderer {
 		for (int i = 0; i < huzuni.waypointManager.getWaypoints().size(); i++) {
 			Waypoint waypoint = huzuni.waypointManager.getWaypoints().get(i);
 			if (waypoint.isOnServer()) {
-				float renderX = (float) (waypoint.getPosition().getX() - mc.getRenderManager().viewerPosX);
-				float renderY = (float) (waypoint.getPosition().getY() - mc.getRenderManager().viewerPosY);
-				float renderZ = (float) (waypoint.getPosition().getZ() - mc.getRenderManager().viewerPosZ);
+				Vector3d renderPos = waypoint.getPosition().toDouble().sub(mc.getCamera());
 				Color color = waypoint.getColor();
-				double scale = (MathUtils.getDistance(waypoint.getPosition()) / 8D) / (1.5F + (2F - scaleValue.getValue()));
+				double scale = (waypoint.getPosition().toDouble().distanceTo(mc.getCamera()) / 8D) / (1.5F + (2F - scaleValue.getValue()));
 				if (scale < 1D || !this.scale.isEnabled())
 					scale = 1D;
 				if (lines.isEnabled())
-					huzuni.renderManager.addLine(renderX, renderY, renderZ, (float) color.getRed() / 255F, (float) color.getGreen() / 255F, (float) color.getBlue() / 255F, opacity.getValue() / 100F);
-				GlStateManager.pushMatrix();
-				RenderUtils.prepareBillboarding(renderX, renderY, renderZ, true);
-				GlStateManager.scale(scale, scale, scale);
+					huzuni.renderManager.addLine((float)renderPos.getX(), (float)renderPos.getY(), (float)renderPos.getZ(), (float) color.getRed() / 255F, (float) color.getGreen() / 255F, (float) color.getBlue() / 255F, opacity.getValue() / 100F);
+				getGLStateManager().pushMatrix();
+				GLUtils.prepareBillboarding((float)renderPos.getX(), (float)renderPos.getY(), (float)renderPos.getZ(), true);
+				getGLStateManager().scale(scale, scale, scale);
 				location.bindTexture();
-				GLManager.glColor(color, opacity.getValue() / 100F);
+				GLUtils.glColor(color, opacity.getValue() / 100F);
 				String renderName = waypoint.getName() + (distance.isEnabled() ? " (" + ((int) waypoint.getDistance()) + ")" : "");
 				if (customFont.isEnabled()) {
 					int width = huzuni.guiFontRenderer.getStringWidth(renderName);
 					if (renderIcon.isEnabled())
 						location.render(-16F, -16F - (huzuni.guiFontRenderer.getStringHeight(renderName)) * 2F, 32, 32);
 					if (background.isEnabled()) {
-						GlStateManager.disableTexture2D();
-						GLManager.glColor(0F, 0F, 0F, opacity.getValue() / 100F);
-						RenderUtils.drawBorderRect(-width / 2 - 2, -2, width / 2 + 2, 10, 2F);
-						GLManager.glColor(1F, 1F, 1F, opacity.getValue() / 100F);
-						GlStateManager.enableTexture2D();
+						getGLStateManager().disableTexture2D();
+						GLUtils.glColor(0F, 0F, 0F, opacity.getValue() / 100F);
+						GLUtils.drawBorderRect(-width / 2 - 2, -2, width / 2 + 2, 10, 2F);
+						GLUtils.glColor(1F, 1F, 1F, opacity.getValue() / 100F);
+						getGLStateManager().enableTexture2D();
 					}
 					huzuni.guiFontRenderer.drawStringWithShadow(renderName, -width / 2, -2, 0xFFFFFF);
 				} else {
-					int width = mc.fontRendererObj.getStringWidth(renderName);
+					int width = getTextRenderer().getWidth(renderName);
 					if (renderIcon.isEnabled())
-						location.render(-16F, -16F - (mc.fontRendererObj.FONT_HEIGHT) * 2F, 32, 32);
+						location.render(-16F, -16F - (getTextRenderer().getHeight()) * 2F, 32, 32);
 					
 					if (background.isEnabled()) {
-						GlStateManager.disableTexture2D();
-						GLManager.glColor(0F, 0F, 0F, opacity.getValue() / 100F);
-						RenderUtils.drawBorderRect(-width / 2 - 2, -2, width / 2 + 2, 10, 2F);
-						GLManager.glColor(1F, 1F, 1F, opacity.getValue() / 100F);
-						GlStateManager.enableTexture2D();
+						getGLStateManager().disableTexture2D();
+						GLUtils.glColor(0F, 0F, 0F, opacity.getValue() / 100F);
+						GLUtils.drawBorderRect(-width / 2 - 2, -2, width / 2 + 2, 10, 2F);
+						GLUtils.glColor(1F, 1F, 1F, opacity.getValue() / 100F);
+						getGLStateManager().enableTexture2D();
 					}
-					mc.fontRendererObj.drawStringWithShadow(renderName, -width / 2, 0, 0xFFFFFF);
-			        GlStateManager.disableAlpha();
+					getTextRenderer().render(renderName, -width / 2, 0, 0xFFFFFF, true);
+			        getGLStateManager().disableAlpha();
 				}
-				GlStateManager.disableTexture2D();
-				GlStateManager.popMatrix();
+				getGLStateManager().disableTexture2D();
+				getGLStateManager().popMatrix();
 			}
 		}
 		glLineWidth(huzuni.settings.lineSize.getValue());
-	}
-	
-	@EventMethod
-	public void onPacket(PacketEvent event) {
-		if (event.type == Type.READ) {
-			if (event.getPacket() instanceof S06PacketUpdateHealth) {
-				S06PacketUpdateHealth packet = (S06PacketUpdateHealth) event.getPacket();
-				if (packet.getHealth() <= 0.0F && mc.thePlayer.getPosition() != null) {
-					huzuni.waypointManager.addDeathPoint(mc.thePlayer.getPosition());
-					huzuni.waypointManager.save();
-				}
-			}
-		}
 	}
 	
 }

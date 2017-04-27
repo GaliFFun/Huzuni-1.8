@@ -2,10 +2,10 @@ package net.halalaboos.huzuni.settings;
 
 import com.google.gson.JsonObject;
 import net.halalaboos.huzuni.api.gui.components.tree.TreeComponentFactory;
-import net.halalaboos.huzuni.api.settings.Node;
+import net.halalaboos.huzuni.api.node.Node;
 import net.halalaboos.huzuni.gui.tree.components.TeamComponent;
-import net.halalaboos.mcwrapper.api.util.TextColor;
-import net.minecraft.entity.Entity;
+import net.halalaboos.mcwrapper.api.entity.Entity;
+import net.halalaboos.mcwrapper.api.util.enums.TextColor;
 
 import java.io.IOException;
 
@@ -28,7 +28,7 @@ public class Team extends Node {
     		int offset = (index >> 3 & 1) * 85;
     		int red = (index >> 2 & 1) * 170 + offset;
     		int green = (index >> 1 & 1) * 170 + offset;
-    		int blue = (index >> 0 & 1) * 170 + offset;
+    		int blue = (index & 1) * 170 + offset;
 
     		if (index == 6) {
     			red += 85;
@@ -56,9 +56,9 @@ public class Team extends Node {
 			teamIndex = json.get(getName()).getAsNumber().intValue();
 		}
 	}
-	
+
 	public boolean isTeam(Entity entity) {
-		return hasTeamColor(entity.getDisplayName().getFormattedText());
+		return hasTeamColor(entity.getUnformattedName());
 	}
 	
 	public boolean hasTeamColor(String text) {
@@ -69,7 +69,7 @@ public class Team extends Node {
 	 * @return the hexadecimal color representing the team of the given entity. Returns -1 if no team could be found.
 	 * */
 	public int getTeamColor(Entity entity) {
-		String[] split = entity.getDisplayName().getFormattedText().split("\247");
+		String[] split = entity.getFormattedName().split("\247");
 		if (split != null) {
 			for (String parse : split) {
 				if (parse.length() > 1) {
@@ -78,7 +78,7 @@ public class Team extends Node {
 					if (index == -1) {
 						continue;
 					} else {
-						if (parse.substring(1).equalsIgnoreCase(entity.getName()))
+						if (parse.substring(1).equalsIgnoreCase(entity.name()))
 							return this.colorCode[index];
 						else
 							continue;
